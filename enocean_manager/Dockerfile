@@ -1,11 +1,12 @@
-FROM python:3.11-alpine
+FROM python:3.11-slim
 
-RUN apk add --no-cache build-base libffi-dev py3-pip curl \
-    && pip install flask python-enocean beautifulsoup4 lxml
+RUN apt-get update && \
+    apt-get install -y build-essential libffi-dev curl && \
+    pip install --no-cache-dir flask python-enocean beautifulsoup4 lxml
 
 COPY run.sh /run.sh
 COPY app /app
 
-RUN chmod +x /run.sh
+WORKDIR /app
 
 CMD ["/run.sh"]
