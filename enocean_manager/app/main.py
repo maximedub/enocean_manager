@@ -1,19 +1,50 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template
 from enocean.consolelogger import init_logger
 from enocean.communicators.serialcommunicator import SerialCommunicator
 from enocean.protocol.packet import RadioPacket
-import time
-import threading
+import requests, time, threading, os
+from bs4 import BeautifulSoup
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder="templates")
 init_logger()
 
 PORT = '/dev/serial/by-id/usb-EnOcean_GmbH_EnOcean_USB_300_DC_FT4T6Q61-if00-port0'
 SENDER_ID = [0xFF, 0xC6, 0xEA, 0x01]
+EEP_URL = "https://tools.enocean-alliance.org/EEPViewer/profiles/eep268.xml"
+EEP_LOCAL_PATH = "/app/eep268.xml"
 
 COMM = SerialCommunicator(port=PORT)
 COMM.start()
 time.sleep(1)
+
+@app.route("/")
+def index():
+    return render_template("index.html")
+
+@app.route("/download-eep", methods=["GET"])
+def download_eep():
+    try:
+        r = requests.get(EEP_URL)
+        r.raise_for_status()
+        with open(EEP_LOCAL_PATH, "wb") as f:
+            f.write(r.content)
+        return jsonify({"status": "Téléchargement réussi", "path": EEP_LOCAL_PATH})
+    except Exception as e:
+        return jsonify({"status": "Erreur", "error": str(e)}), 500
+
+@app.route("/parse-eep", methods=["GET"])
+def parse_eep():
+    if not os.path.exists(EEP_LOCAL_PATH):
+        return jsonify({"error": "EEP manquant"}), 404
+    with open(EEP_LOCAL_PATH, "r", encoding="utf-8") as file:
+        soup = BeautifulSoup(file, "xml")
+        profiles = soup.find_all("profile")
+        result = []
+        for p in profiles:
+            eep = p.find("eep").text if p.find("eep") else "???"
+            func = p.find("functionname").text if p.find("functionname") else "???"
+            result.append({"eep": eep, "function": func})
+    return jsonify(result)
 
 @app.route("/appairer", methods=["POST"])
 def appairer():
@@ -48,7 +79,8 @@ def etat():
     return jsonify({
         "status": "Actif",
         "port": PORT,
-        "sender_id": SENDER_ID
+        "sender_id": SENDER_ID,
+        "eep_fichier": os.path.exists(EEP_LOCAL_PATH)
     })
 
 if __name__ == "__main__":

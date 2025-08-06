@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>EnOcean Manager</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        button { margin: 5px; padding: 10px; }
+        #result { margin-top: 15px; font-family: monospace; white-space: pre; }
+    </style>
+</head>
+<body>
+    <h1>🛰️ EnOcean Manager</h1>
+    <button onclick="fetchEep()">📥 Télécharger EEP</button>
+    <button onclick="parseEep()">🔍 Lister EEP</button>
+    <button onclick="appairer()">🔁 Appairer</button>
+    <button onclick="configurer()">⚙️ Configurer</button>
+    <div id="result"></div>
+
+    <script>
+        async function fetchEep() {
+            const r = await fetch('/download-eep');
+            document.getElementById('result').textContent = JSON.stringify(await r.json(), null, 2);
+        }
+        async function parseEep() {
+            const r = await fetch('/parse-eep');
+            document.getElementById('result').textContent = JSON.stringify(await r.json(), null, 2);
+        }
+        async function appairer() {
+            const r = await fetch('/appairer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ target_id: [5, 151, 156, 250] })
+            });
+            document.getElementById('result').textContent = JSON.stringify(await r.json(), null, 2);
+        }
+        async function configurer() {
+            const r = await fetch('/configurer', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    target_id: [5, 151, 156, 250],
+                    db0: 8,
+                    db1: 0,
+                    db2: 0,
+                    db3: 1
+                })
+            });
+            document.getElementById('result').textContent = JSON.stringify(await r.json(), null, 2);
+        }
+    </script>
+</body>
+</html>
