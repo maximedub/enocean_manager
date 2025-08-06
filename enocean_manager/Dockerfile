@@ -14,11 +14,8 @@ RUN apt-get update && \
 RUN pip install --upgrade pip setuptools wheel
 
 # Installation des dépendances Python
-RUN pip install --no-cache-dir \
-    flask \
-    python-enocean \
-    beautifulsoup4 \
-    lxml
+RUN pip install --no-cache-dir flask beautifulsoup4 lxml
+
 
 COPY run.sh /run.sh
 COPY app /app
