@@ -1,5 +1,6 @@
 FROM python:3.11-slim
 
+# Installer les dépendances système + git
 RUN apt-get update && \
     apt-get install -y \
         build-essential \
@@ -8,10 +9,13 @@ RUN apt-get update && \
         libxslt1-dev \
         zlib1g-dev \
         curl \
+        git \
         && rm -rf /var/lib/apt/lists/*
 
+# Outils Python de compilation
 RUN pip install --upgrade pip setuptools wheel
 
+# Dépendances Python
 RUN pip install --no-cache-dir \
     flask \
     beautifulsoup4 \
