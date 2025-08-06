@@ -1,6 +1,7 @@
-FROM python:3.11-slim
+# Utilise une image Python compatible multi-architecture
+FROM --platform=$BUILDPLATFORM python:3.11-slim
 
-# Installer les dépendances système + git
+# Installer les dépendances système
 RUN apt-get update && \
     apt-get install -y \
         build-essential \
@@ -10,21 +11,20 @@ RUN apt-get update && \
         zlib1g-dev \
         curl \
         git \
-        && rm -rf /var/lib/apt/lists/*
+    && rm -rf /var/lib/apt/lists/*
 
-# Outils Python de compilation
-RUN pip install --upgrade pip setuptools wheel
+# Installer les dépendances Python
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir \
+        flask \
+        beautifulsoup4 \
+        lxml \
+        git+https://github.com/kipe/enocean.git
 
-# Dépendances Python
-RUN pip install --no-cache-dir \
-    flask \
-    beautifulsoup4 \
-    lxml \
-    git+https://github.com/kipe/enocean.git
-
+# Copie des fichiers de l'application
 COPY run.sh /run.sh
 COPY app /app
 
 WORKDIR /app
 
-CMD ["/run.sh"]
+CMD ["/bin/bash", "/run.sh"]
