@@ -5,7 +5,7 @@
   "description": "Gestion avancée des modules EnOcean : appairage, configuration, EEP.",
   "startup": "application",
   "boot": "auto",
-  "image": "local/enocean_manager",
+  "image": "ghcr.io/maximedub/enocean_manager-{arch}"
   "host_network": true,
   "privileged": ["SYS_RAWIO", "SYS_ADMIN"],
   "devices": ["/dev/ttyUSB0", "/dev/serial/by-id/"],
