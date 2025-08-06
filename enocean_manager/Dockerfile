@@ -10,12 +10,13 @@ RUN apt-get update && \
         curl \
         && rm -rf /var/lib/apt/lists/*
 
-# Ajout des outils de build Python (important pour python-enocean)
 RUN pip install --upgrade pip setuptools wheel
 
-# Installation des dépendances Python
-RUN pip install --no-cache-dir flask beautifulsoup4 lxml
-
+RUN pip install --no-cache-dir \
+    flask \
+    beautifulsoup4 \
+    lxml \
+    git+https://github.com/kipe/enocean.git
 
 COPY run.sh /run.sh
 COPY app /app
