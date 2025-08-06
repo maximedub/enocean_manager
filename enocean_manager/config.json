@@ -1,0 +1,17 @@
+{
+  "name": "EnOcean Manager",
+  "version": "1.0",
+  "slug": "enocean_manager",
+  "description": "Gestion avancée des modules EnOcean : appairage, configuration, envoi/réception de trames",
+  "startup": "application",
+  "boot": "auto",
+  "host_network": true,
+  "privileged": ["SYS_RAWIO", "SYS_ADMIN"],
+  "devices": ["/dev/ttyUSB0", "/dev/serial/by-id/"],
+  "options": {},
+  "schema": {},
+  "arch": ["armv7", "arm64", "amd64"],
+  "ports": {
+    "5000/tcp": 5000
+  }
+}
