@@ -13,7 +13,5 @@
   "panel_title": "EnOcean Manager",
   "homeassistant_api": false,
   "host_network": true,
-  "options": {},
-  "schema": {},
   "image": "ghcr.io/maximedub/enocean_manager-{arch}"
 }
