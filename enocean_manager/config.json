@@ -6,7 +6,6 @@
   "startup": "application",
   "boot": "auto",
   "host_network": true,
-  "privileged": ["SYS_RAWIO", "SYS_ADMIN"],
   "devices": ["/dev/ttyUSB0", "/dev/serial/by-id/"],
   "options": {},
   "schema": {},
@@ -15,3 +14,5 @@
     "5000/tcp": 5000
   }
 }
+
+
