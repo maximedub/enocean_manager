@@ -1,6 +1,5 @@
 FROM python:3.11-slim
 
-# Installer les dépendances système nécessaires
 RUN apt-get update && \
     apt-get install -y \
         build-essential \
@@ -11,14 +10,16 @@ RUN apt-get update && \
         curl \
         && rm -rf /var/lib/apt/lists/*
 
-# Installer les packages Python
+# Ajout des outils de build Python (important pour python-enocean)
+RUN pip install --upgrade pip setuptools wheel
+
+# Installation des dépendances Python
 RUN pip install --no-cache-dir \
     flask \
     python-enocean \
     beautifulsoup4 \
     lxml
 
-# Copier les fichiers
 COPY run.sh /run.sh
 COPY app /app
 
