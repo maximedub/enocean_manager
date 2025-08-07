@@ -63,7 +63,7 @@ class EEPDevice:
             "profiles": self.get_profiles()
         }
 
-    def parse_eep_file(path):
+def parse_eep_file(path):
     try:
         with open(path, "r", encoding="utf-8") as file:
             soup = BeautifulSoup(file, "xml")
