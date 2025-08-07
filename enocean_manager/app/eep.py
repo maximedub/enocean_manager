@@ -62,3 +62,22 @@ class EEPDevice:
             "type": self.get_type(),
             "profiles": self.get_profiles()
         }
+
+    def parse_eep_file(path):
+    try:
+        with open(path, "r", encoding="utf-8") as file:
+            soup = BeautifulSoup(file, "xml")
+            title = soup.find("title").text if soup.find("title") else "???"
+            function = soup.find("function").text if soup.find("function") else "???"
+            description = soup.find("description").text if soup.find("description") else "???"
+            return {
+                "title": title,
+                "function": function,
+                "description": description
+            }
+    except Exception as e:
+        return {
+            "title": "Erreur",
+            "function": str(e),
+            "description": ""
+        }
