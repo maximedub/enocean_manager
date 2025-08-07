@@ -40,29 +40,43 @@ def index():
 @app.route("/appairer", methods=["POST"])
 def appairer():
     def detect_and_pair():
-        print("🔍 En attente d'un paquet pour appairage...")
-        packet = None
-        for _ in range(100):  # Timeout après 10s
-            packet = COMM.receive.get(timeout=0.1)
-            if isinstance(packet, RadioPacket):
-                sender = packet.sender_int  # Integer version
-                sender_hex = list(packet.sender)
-                save_device(sender_hex)
-                print(f"📡 Appareil détecté: {sender_hex}")
+        try:
+            print("[INFO] Démarrage de l’écoute pour appairage...")
+            # Attendre une trame entrante pendant 10 secondes max
+            for _ in range(100):  # 100 × 0.1s = 10 secondes
+                if COMM.receive.get():
+                    packet = COMM.receive.get(block=False)
+                    if hasattr(packet, 'sender') and packet.sender:
+                        sender = packet.sender.hex()
+                        print(f"[INFO] Appareil détecté : {sender}")
+                        save_device(sender)
 
-                # Envoi trame d'appairage
-                for _ in range(3):
-                    COMM.send(RadioPacket.create_packet(
-                        rorg=0xF6, sender=SENDER_ID, destination=sender_hex, data=[0x70]))
-                    time.sleep(0.1)
-                    COMM.send(RadioPacket.create_packet(
-                        rorg=0xF6, sender=SENDER_ID, destination=sender_hex, data=[0x00]))
-                    time.sleep(0.1)
-                print("✅ Appairage terminé")
-                break
-            time.sleep(0.1)
+                        # Trame d'appairage envoyée
+                        for _ in range(3):
+                            COMM.send(RadioPacket.create_packet(
+                                rorg=0xF6,
+                                sender=SENDER_ID,
+                                destination=packet.sender,
+                                data=[0x70]
+                            ))
+                            time.sleep(0.1)
+                            COMM.send(RadioPacket.create_packet(
+                                rorg=0xF6,
+                                sender=SENDER_ID,
+                                destination=packet.sender,
+                                data=[0x00]
+                            ))
+                            time.sleep(0.1)
+                        break
+                time.sleep(0.1)
+        except Exception as e:
+            print(f"[ERROR] Appairage échoué : {e}")
+
     threading.Thread(target=detect_and_pair).start()
-    return jsonify({"status": "Recherche de trame EnOcean lancée"})
+
+    # ✅ Réponse JSON valide
+    return jsonify({"status": "Recherche d’un appareil en cours…"})  # <--- corrige ici
+
 
 @app.route("/devices", methods=["GET"])
 def list_devices():
