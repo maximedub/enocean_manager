@@ -14,8 +14,10 @@ ingress: true
 #ingress_port: 8099
 panel_title: "EnOcean Manager"
 
-uart: true
 usb: true
+uart: true
+devices:
+  - /dev/serial/by-id/usb-EnOcean_GmbH_EnOcean_USB_300_DC_FT4T6Q61-if00-port0:/dev/ttyUSB0
 
 url: "https://github.com/maximedub/enocean_manager"
 
