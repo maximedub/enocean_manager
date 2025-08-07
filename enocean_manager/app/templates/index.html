@@ -3,31 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <title>EnOcean Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f7f7f7;
+            padding: 2rem;
+        }
+        h1 {
+            color: #004466;
+        }
+        .device {
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            margin: 1rem 0;
+            padding: 1rem;
+            box-shadow: 2px 2px 6px rgba(0,0,0,0.05);
+        }
+        .eep-info {
+            font-size: 0.9em;
+            color: #555;
+            margin-top: 0.5rem;
+        }
+        button {
+            background-color: #004466;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #006699;
+        }
+        #status {
+            margin-top: 1rem;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    <h1>🛰️ Gestionnaire EnOcean</h1>
-    <button onclick="lancerAppairage()">🔗 Lancer l'appairage automatique</button>
-    <div id="resultat"></div>
 
-    <script>
-        function lancerAppairage() {
-            document.getElementById("resultat").innerText = "⏳ En attente de trame...";
-            fetch("/appairer", {
-                method: "POST"
-            })
-            .then(res => res.json().then(data => ({ ok: res.ok, data })))
-            .then(({ ok, data }) => {
-                if (!ok) throw data;
-                document.getElementById("resultat").innerHTML =
-                    `✅ Appairé avec l'ID : <code>${data.target_id}</code><br>
-                    EEP : ${data.eep_code}<br>
-                    Fichier XML : ${data.eep_file}`;
+<h1>Gestionnaire EnOcean</h1>
+
+<button onclick="lancerAppairage()">🔗 Lancer l’appairage</button>
+<div id="status"></div>
+
+<h2>Appareils appairés</h2>
+{% for device in devices %}
+    <div class="device">
+        <div><strong>ID :</strong> {{ device.target_id }}</div>
+        <div><strong>EEP :</strong> {{ device.eep }}</div>
+
+        {% if device.eep_info %}
+            {% if device.eep_info.error %}
+                <div class="eep-info" style="color: red;">
+                    ⚠ {{ device.eep_info.error }}
+                </div>
+            {% else %}
+                <div class="eep-info">
+                    <strong>Fonction :</strong> {{ device.eep_info.function }}<br>
+                    <strong>Type :</strong> {{ device.eep_info.type }}<br>
+                    <strong>Description :</strong> {{ device.eep_info.description }}
+                </div>
+            {% endif %}
+        {% endif %}
+    </div>
+{% else %}
+    <p>Aucun appareil appairé pour le moment.</p>
+{% endfor %}
+
+<script>
+    function lancerAppairage() {
+        document.getElementById("status").innerText = "⏳ Appairage en cours...";
+
+        fetch("/appairer", { method: "POST" })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "Appairage réussi") {
+                    document.getElementById("status").innerText = "✅ Appairage réussi avec l’ID " + data.target_id.join("-");
+                    setTimeout(() => window.location.reload(), 2000);
+                } else if (data.status === "incomplet") {
+                    document.getElementById("status").innerText = "⚠ " + data.message + " (" + data.eep_code + ")";
+                } else {
+                    document.getElementById("status").innerText = "❌ Erreur : " + data.error;
+                }
             })
             .catch(err => {
-                document.getElementById("resultat").innerHTML =
-                    `❌ Erreur lors de l’appairage : <br><pre>${JSON.stringify(err, null, 2)}</pre>`;
+                document.getElementById("status").innerText = "❌ Erreur réseau : " + err.message;
             });
-        }
-    </script>
+    }
+</script>
+
 </body>
 </html>
