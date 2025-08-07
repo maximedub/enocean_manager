@@ -17,6 +17,7 @@ RUN apt-get update && \
 RUN pip install --upgrade pip setuptools wheel && \
     pip install --no-cache-dir \
         flask \
+        gunicorn \
         requests \
         beautifulsoup4 \
         lxml \
@@ -29,5 +30,8 @@ COPY app /app
 # Définir le dossier de travail
 WORKDIR /app
 
-# Point d'entrée
+# Expose le port utilisé par Gunicorn / Flask
+EXPOSE 5000
+
+# Point d’entrée
 CMD ["/bin/bash", "/run.sh"]
