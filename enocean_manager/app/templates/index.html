@@ -1,51 +1,31 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>EnOcean Manager</title>
-    <style>
-        body { font-family: sans-serif; padding: 20px; }
-        button { margin: 5px; padding: 10px; }
-        #result { margin-top: 15px; font-family: monospace; white-space: pre; }
-    </style>
+    <title>Gestion EnOcean</title>
 </head>
 <body>
-    <h1>🛰️ EnOcean Manager</h1>
-    <button onclick="fetchEep()">📥 Télécharger EEP</button>
-    <button onclick="parseEep()">🔍 Lister EEP</button>
-    <button onclick="appairer()">🔁 Appairer</button>
-    <button onclick="configurer()">⚙️ Configurer</button>
-    <div id="result"></div>
+    <h1>Appareils appairés</h1>
+    <ul>
+        {% for dev in devices %}
+        <li>{{ dev }}</li>
+        {% endfor %}
+    </ul>
+
+    <h2>Nouvel appairage</h2>
+    <form onsubmit="event.preventDefault(); appairer();">
+        <label for="target">ID cible (hexadécimal, 4 octets) :</label><br>
+        <input type="text" id="target" placeholder="FF,C6,EA,01" required>
+        <button type="submit">Appairer</button>
+    </form>
 
     <script>
-        async function fetchEep() {
-            const r = await fetch('/download-eep');
-            document.getElementById('result').textContent = JSON.stringify(await r.json(), null, 2);
-        }
-        async function parseEep() {
-            const r = await fetch('/parse-eep');
-            document.getElementById('result').textContent = JSON.stringify(await r.json(), null, 2);
-        }
-        async function appairer() {
-            const r = await fetch('/appairer', {
+        function appairer() {
+            const id = document.getElementById("target").value.split(',').map(x => parseInt(x, 16));
+            fetch('/appairer', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ target_id: [5, 151, 156, 250] })
-            });
-            document.getElementById('result').textContent = JSON.stringify(await r.json(), null, 2);
-        }
-        async function configurer() {
-            const r = await fetch('/configurer', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    target_id: [5, 151, 156, 250],
-                    db0: 8,
-                    db1: 0,
-                    db2: 0,
-                    db3: 1
-                })
-            });
-            document.getElementById('result').textContent = JSON.stringify(await r.json(), null, 2);
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({target_id: id})
+            }).then(resp => resp.json()).then(data => alert(JSON.stringify(data)));
         }
     </script>
 </body>
