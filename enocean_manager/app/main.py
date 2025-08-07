@@ -34,7 +34,6 @@ def index():
 def appairer():
     try:
         result = appairer_auto()
-
         if result["status"] == "missing":
             return jsonify({
                 "status": "incomplet",
@@ -42,16 +41,15 @@ def appairer():
                 "target_id": result["target_id"],
                 "eep_code": result["eep_code"]
             }), 404
-
         return jsonify({
             "status": "Appairage réussi",
             "target_id": result["target_id"],
             "eep_code": result["eep_code"],
-            "eep_file": result["eep_file"]
+            "eep_file": result.get("eep_file", "")
         })
-
     except Exception as e:
         return jsonify({"status": "Erreur", "error": str(e)}), 500
+
 
 
 @app.route("/etat", methods=["GET"])
