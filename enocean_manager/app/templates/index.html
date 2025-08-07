@@ -1,102 +1,94 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
   <title>EnOcean Manager</title>
   <style>
     body {
       font-family: Arial, sans-serif;
-      padding: 2rem;
-      background-color: #f3f3f3;
+      padding: 2em;
+      background-color: #f5f5f5;
     }
-    h1 {
+    h1, h2 {
       color: #2c3e50;
     }
-    input[type="text"] {
-      padding: 0.5rem;
-      font-size: 1rem;
-      width: 200px;
-    }
     button {
-      padding: 0.5rem 1rem;
-      margin-left: 1rem;
-      font-size: 1rem;
       background-color: #3498db;
       color: white;
       border: none;
-      border-radius: 4px;
+      padding: 12px 20px;
+      margin-bottom: 1em;
+      font-size: 16px;
       cursor: pointer;
+      border-radius: 5px;
     }
     button:hover {
       background-color: #2980b9;
     }
     #status {
-      margin-top: 1rem;
+      margin-top: 1em;
       font-weight: bold;
     }
     ul {
-      margin-top: 2rem;
+      background-color: white;
+      padding: 1em;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #ccc;
+      list-style-type: none;
     }
     li {
-      background-color: white;
-      border: 1px solid #ddd;
-      padding: 0.5rem;
-      margin-bottom: 0.5rem;
-      border-radius: 4px;
+      padding: 6px 0;
     }
   </style>
 </head>
 <body>
-  <h1>🧩 EnOcean Manager</h1>
 
-  <label for="target_id">ID du module (hex, ex: 05 24 38 0A) :</label>
-  <input type="text" id="target_id" placeholder="05 24 38 0A" />
-  <button onclick="appairer()">Appairer</button>
+  <h1>EnOcean Manager</h1>
 
-  <div id="status"></div>
+  <button onclick="lancerAppairage()">Appairer un nouvel appareil automatiquement</button>
+  <div id="status">Aucun appairage en cours.</div>
 
-  <h2>📋 Modules appairés</h2>
-  <ul id="device-list"></ul>
+  <h2>Appareils appairés</h2>
+  <ul id="device-list">
+    {% for dev in devices %}
+      <li>{{ dev }}</li>
+    {% endfor %}
+  </ul>
 
   <script>
-    function appairer() {
-      const input = document.getElementById("target_id").value.trim();
-      const parts = input.split(" ").map(p => parseInt(p, 16));
-      if (parts.length !== 4 || parts.some(isNaN)) {
-        document.getElementById("status").innerText = "❌ Format invalide (ex : 05 24 38 0A)";
-        return;
-      }
+    function lancerAppairage() {
+      const status = document.getElementById("status");
+      status.innerText = "🔄 En attente d’un appareil EnOcean…";
 
-      fetch("/appairer", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ target_id: parts }),
-      })
-        .then(res => res.json())
+      fetch('/appairer', { method: 'POST' })
+        .then(response => response.json())
         .then(data => {
-          document.getElementById("status").innerText = `✅ ${data.status}`;
-          loadDevices();
+          status.innerText = "📡 Appairage en cours…";
+          setTimeout(actualiserListe, 5000);  // attendre un peu pour que l’appareil apparaisse
         })
-        .catch(() => {
-          document.getElementById("status").innerText = "❌ Erreur lors de l’appairage";
+        .catch(err => {
+          status.innerText = "❌ Erreur lors de l’appairage : " + err;
         });
     }
 
-    function loadDevices() {
-      fetch("/devices")
-        .then(res => res.json())
+    function actualiserListe() {
+      fetch('/devices')
+        .then(response => response.json())
         .then(data => {
           const list = document.getElementById("device-list");
-          list.innerHTML = "";
-          data.forEach(d => {
+          list.innerHTML = '';
+          data.forEach(dev => {
             const li = document.createElement("li");
-            li.textContent = d.map(byte => byte.toString(16).padStart(2, '0')).join(" ").toUpperCase();
+            li.textContent = JSON.stringify(dev);
             list.appendChild(li);
           });
+          document.getElementById("status").innerText = "✅ Appairage terminé.";
+        })
+        .catch(err => {
+          document.getElementById("status").innerText = "❌ Impossible de charger les appareils.";
         });
     }
-
-    window.onload = loadDevices;
   </script>
+
 </body>
 </html>
