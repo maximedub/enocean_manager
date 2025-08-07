@@ -1,0 +1,21 @@
+name: "EnOcean Manager"
+version: "1.0.0"
+slug: "enocean_manager"
+description: "Module complémentaire pour gérer l'appairage et la configuration des modules EnOcean"
+arch:
+  - amd64
+  - aarch64
+  - armv7
+  - armhf
+  - i386
+startup: services
+boot: auto
+host_network: true
+options: {}
+schema: {}
+ports:
+  5000/tcp: 5000
+panel_icon: "mdi:home-automation"
+panel_title: "EnOcean Manager"
+ingress: false
+url: "http://[HOST]:5000"
