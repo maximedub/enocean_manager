@@ -17,6 +17,7 @@ RUN apt-get update && \
 RUN pip install --upgrade pip setuptools wheel && \
     pip install --no-cache-dir \
         flask \
+        requests \
         beautifulsoup4 \
         lxml \
         git+https://github.com/kipe/enocean.git
@@ -25,6 +26,8 @@ RUN pip install --upgrade pip setuptools wheel && \
 COPY run.sh /run.sh
 COPY app /app
 
+# Définir le dossier de travail
 WORKDIR /app
 
+# Point d'entrée
 CMD ["/bin/bash", "/run.sh"]
