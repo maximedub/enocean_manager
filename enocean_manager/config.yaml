@@ -12,7 +12,6 @@ host_network: true
 
 ingress: true
 ingress_port: 5000
-panel_icon: "mdi:lan-connect"
 panel_title: "EnOcean Manager"
 
 uart: true
