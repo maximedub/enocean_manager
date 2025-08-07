@@ -1,17 +1,25 @@
 name: "EnOcean Manager"
-version: "1.0.0"
+version: "0.0.2"
 slug: "enocean_manager"
-description: "Module complémentaire pour gérer l'appairage et la configuration des modules EnOcean"
+description: "Gérez l'appairage et la configuration de vos appareils EnOcean depuis Home Assistant"
 arch:
+  - amd64
   - armv7
   - aarch64
-  - amd64
 startup: application
 boot: auto
 host_network: true
-ingress: false
-ports:
-  5000/tcp: 5000
+
+ingress: true
+ingress_port: 5000
 panel_icon: "mdi:lan-connect"
 panel_title: "EnOcean Manager"
+
+uart: true
+usb: true
+
 url: "https://github.com/maximedub/enocean_manager"
+
+# Pour le supervisor / journalisation
+options: {}
+schema: {}
