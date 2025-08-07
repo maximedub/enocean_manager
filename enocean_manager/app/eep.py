@@ -16,7 +16,7 @@ class EEPDevice:
 
         if self.valid:
             with open(self.filepath, "r", encoding="utf-8") as f:
-                self.soup = BeautifulSoup(f, "xml")
+                self.soup = BeautifulSoup(f, "lxml-xml")
         else:
             raise FileNotFoundError(f"Fichier EEP introuvable : {self.filename}")
 
@@ -64,16 +64,17 @@ class EEPDevice:
         }
 
 def parse_eep_file(path):
+    def _text(soup, tagname):
+        tag = soup.find(tagname)
+        return tag.text.strip() if tag else "???"
+
     try:
         with open(path, "r", encoding="utf-8") as file:
-            soup = BeautifulSoup(file, "xml")
-            title = soup.find("title").text if soup.find("title") else "???"
-            function = soup.find("function").text if soup.find("function") else "???"
-            description = soup.find("description").text if soup.find("description") else "???"
+            soup = BeautifulSoup(file, "lxml-xml")
             return {
-                "title": title,
-                "function": function,
-                "description": description
+                "title": _text(soup, "title"),
+                "function": _text(soup, "function"),
+                "description": _text(soup, "description")
             }
     except Exception as e:
         return {
