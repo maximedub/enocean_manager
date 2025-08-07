@@ -1,32 +1,102 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
-    <title>Gestion EnOcean</title>
+  <meta charset="UTF-8" />
+  <title>EnOcean Manager</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 2rem;
+      background-color: #f3f3f3;
+    }
+    h1 {
+      color: #2c3e50;
+    }
+    input[type="text"] {
+      padding: 0.5rem;
+      font-size: 1rem;
+      width: 200px;
+    }
+    button {
+      padding: 0.5rem 1rem;
+      margin-left: 1rem;
+      font-size: 1rem;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #2980b9;
+    }
+    #status {
+      margin-top: 1rem;
+      font-weight: bold;
+    }
+    ul {
+      margin-top: 2rem;
+    }
+    li {
+      background-color: white;
+      border: 1px solid #ddd;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      border-radius: 4px;
+    }
+  </style>
 </head>
 <body>
-    <h1>Appareils appairés</h1>
-    <ul>
-        {% for dev in devices %}
-        <li>{{ dev }}</li>
-        {% endfor %}
-    </ul>
+  <h1>🧩 EnOcean Manager</h1>
 
-    <h2>Nouvel appairage</h2>
-    <form onsubmit="event.preventDefault(); appairer();">
-        <label for="target">ID cible (hexadécimal, 4 octets) :</label><br>
-        <input type="text" id="target" placeholder="FF,C6,EA,01" required>
-        <button type="submit">Appairer</button>
-    </form>
+  <label for="target_id">ID du module (hex, ex: 05 24 38 0A) :</label>
+  <input type="text" id="target_id" placeholder="05 24 38 0A" />
+  <button onclick="appairer()">Appairer</button>
 
-    <script>
-        function appairer() {
-            const id = document.getElementById("target").value.split(',').map(x => parseInt(x, 16));
-            fetch('/appairer', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({target_id: id})
-            }).then(resp => resp.json()).then(data => alert(JSON.stringify(data)));
-        }
-    </script>
+  <div id="status"></div>
+
+  <h2>📋 Modules appairés</h2>
+  <ul id="device-list"></ul>
+
+  <script>
+    function appairer() {
+      const input = document.getElementById("target_id").value.trim();
+      const parts = input.split(" ").map(p => parseInt(p, 16));
+      if (parts.length !== 4 || parts.some(isNaN)) {
+        document.getElementById("status").innerText = "❌ Format invalide (ex : 05 24 38 0A)";
+        return;
+      }
+
+      fetch("/appairer", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_id: parts }),
+      })
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("status").innerText = `✅ ${data.status}`;
+          loadDevices();
+        })
+        .catch(() => {
+          document.getElementById("status").innerText = "❌ Erreur lors de l’appairage";
+        });
+    }
+
+    function loadDevices() {
+      fetch("/devices")
+        .then(res => res.json())
+        .then(data => {
+          const list = document.getElementById("device-list");
+          list.innerHTML = "";
+          data.forEach(d => {
+            const li = document.createElement("li");
+            li.textContent = d.map(byte => byte.toString(16).padStart(2, '0')).join(" ").toUpperCase();
+            list.appendChild(li);
+          });
+        });
+    }
+
+    window.onload = loadDevices;
+  </script>
 </body>
 </html>
