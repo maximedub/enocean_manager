@@ -1,11 +1,13 @@
 from flask import Flask, request, jsonify, render_template
-from enocean.consolelogger import logger
+import logging
 from enocean.communicators.serialcommunicator import SerialCommunicator
 from enocean.protocol.packet import RadioPacket
 import requests, time, threading, os, json
 from bs4 import BeautifulSoup
 
 app = Flask(__name__, template_folder="templates")
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("enocean_manager")
 
 PORT = '/dev/serial/by-id/usb-EnOcean_GmbH_EnOcean_USB_300_DC_FT4T6Q61-if00-port0'
 SENDER_ID = [0xFF, 0xC6, 0xEA, 0x01]
