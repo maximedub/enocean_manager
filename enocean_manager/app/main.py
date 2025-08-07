@@ -98,6 +98,3 @@ def parse_eep():
             func = p.find("functionname").text if p.find("functionname") else "???"
             result.append({"eep": eep, "function": func})
     return jsonify(result)
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
