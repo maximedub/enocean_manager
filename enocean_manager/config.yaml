@@ -1,5 +1,5 @@
 name: "EnOcean Manager"
-version: "0.0.2c"
+version: "0.0.2d"
 slug: "enocean_manager"
 description: "Gérez l'appairage et la configuration de vos appareils EnOcean depuis Home Assistant"
 arch:
@@ -8,19 +8,20 @@ arch:
   - aarch64
 startup: application
 boot: auto
-host_network: true
 
 ingress: true
-#ingress_port: 5000
+ingress_port: 5000
+panel_icon: "mdi:dolphin"
 panel_title: "EnOcean Manager"
 
+host_network: false
 usb: true
 uart: true
-devices:
-  - /dev/serial/by-id/usb-EnOcean_GmbH_EnOcean_USB_300_DC_FT4T6Q61-if00-port0:/dev/ttyUSB0
 
 url: "https://github.com/maximedub/enocean_manager"
 
-# Pour le supervisor / journalisation
+devices:
+  - /dev/ttyUSB0
+
 options: {}
 schema: {}
