@@ -1,94 +1,33 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title>EnOcean Manager</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      padding: 2em;
-      background-color: #f5f5f5;
-    }
-    h1, h2 {
-      color: #2c3e50;
-    }
-    button {
-      background-color: #3498db;
-      color: white;
-      border: none;
-      padding: 12px 20px;
-      margin-bottom: 1em;
-      font-size: 16px;
-      cursor: pointer;
-      border-radius: 5px;
-    }
-    button:hover {
-      background-color: #2980b9;
-    }
-    #status {
-      margin-top: 1em;
-      font-weight: bold;
-    }
-    ul {
-      background-color: white;
-      padding: 1em;
-      border-radius: 8px;
-      box-shadow: 0 0 10px #ccc;
-      list-style-type: none;
-    }
-    li {
-      padding: 6px 0;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>EnOcean Manager</title>
 </head>
 <body>
+    <h1>🛰️ Gestionnaire EnOcean</h1>
+    <button onclick="lancerAppairage()">🔗 Lancer l'appairage automatique</button>
+    <div id="resultat"></div>
 
-  <h1>EnOcean Manager</h1>
-
-  <button onclick="lancerAppairage()">Appairer un nouvel appareil automatiquement</button>
-  <div id="status">Aucun appairage en cours.</div>
-
-  <h2>Appareils appairés</h2>
-  <ul id="device-list">
-    {% for dev in devices %}
-      <li>{{ dev }}</li>
-    {% endfor %}
-  </ul>
-
-  <script>
-    function lancerAppairage() {
-      const status = document.getElementById("status");
-      status.innerText = "🔄 En attente d’un appareil EnOcean…";
-
-      fetch('/appairer', { method: 'POST' })
-        .then(response => response.json())
-        .then(data => {
-          status.innerText = "📡 Appairage en cours…";
-          setTimeout(actualiserListe, 5000);  // attendre un peu pour que l’appareil apparaisse
-        })
-        .catch(err => {
-          status.innerText = "❌ Erreur lors de l’appairage : " + err;
-        });
-    }
-
-    function actualiserListe() {
-      fetch('/devices')
-        .then(response => response.json())
-        .then(data => {
-          const list = document.getElementById("device-list");
-          list.innerHTML = '';
-          data.forEach(dev => {
-            const li = document.createElement("li");
-            li.textContent = JSON.stringify(dev);
-            list.appendChild(li);
-          });
-          document.getElementById("status").innerText = "✅ Appairage terminé.";
-        })
-        .catch(err => {
-          document.getElementById("status").innerText = "❌ Impossible de charger les appareils.";
-        });
-    }
-  </script>
-
+    <script>
+        function lancerAppairage() {
+            document.getElementById("resultat").innerText = "⏳ En attente de trame...";
+            fetch("/appairer", {
+                method: "POST"
+            })
+            .then(res => res.json().then(data => ({ ok: res.ok, data })))
+            .then(({ ok, data }) => {
+                if (!ok) throw data;
+                document.getElementById("resultat").innerHTML =
+                    `✅ Appairé avec l'ID : <code>${data.target_id}</code><br>
+                    EEP : ${data.eep_code}<br>
+                    Fichier XML : ${data.eep_file}`;
+            })
+            .catch(err => {
+                document.getElementById("resultat").innerHTML =
+                    `❌ Erreur lors de l’appairage : <br><pre>${JSON.stringify(err, null, 2)}</pre>`;
+            });
+        }
+    </script>
 </body>
 </html>
