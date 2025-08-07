@@ -1,3 +1,3 @@
 #!/bin/sh
 cd /app
-python3 main.py
+exec gunicorn -b 0.0.0.0:5000 main:app
