@@ -16,7 +16,8 @@ def send_pairing_signal(target_id):
         time.sleep(0.1)
 
 def appairer_auto(callback=None):
-    print("🔍 En attente d'une trame pour appairage...")
+    import logging
+    logging.info("🔍 En attente d'une trame pour appairage...")
     communicator._buffer.clear()
 
     while True:
