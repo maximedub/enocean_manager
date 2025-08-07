@@ -9,7 +9,8 @@ app = Flask(__name__, template_folder="templates")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("enocean_manager")
 
-PORT = '/dev/serial/by-id/usb-EnOcean_GmbH_EnOcean_USB_300_DC_FT4T6Q61-if00-port0'
+#PORT = '/dev/serial/by-id/usb-EnOcean_GmbH_EnOcean_USB_300_DC_FT4T6Q61-if00-port0'
+PORT = '/dev/ttyUSB0'
 SENDER_ID = [0xFF, 0xC6, 0xEA, 0x01]
 EEP_URL = "https://tools.enocean-alliance.org/EEPViewer/profiles/eep268.xml"
 EEP_LOCAL_PATH = "/app/eep268.xml"
