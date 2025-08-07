@@ -1,53 +1,41 @@
-import os
 import json
-from eep import EEPDevice
+import os
+from eep import parse_eep_file
 
-PAIRED_DEVICES_FILE = os.getenv("PAIRED_DEVICES_FILE", "/data/devices.json")
+# Chemin vers le fichier JSON de persistance
+DEVICES_FILE = "/data/devices.json"
 
-
-# Initialisation du fichier si inexistant
+# Initialise le fichier s'il n'existe pas
 if not os.path.exists(DEVICES_FILE):
     with open(DEVICES_FILE, "w") as f:
         json.dump([], f)
 
-
-def load_devices():
-    """Charge les périphériques appairés depuis le fichier"""
-    try:
-        with open(DEVICES_FILE, "r") as f:
-            return json.load(f)
-    except Exception:
-        return []
-
-
 def save_device(device):
-    """Ajoute un nouveau périphérique s’il n’est pas déjà enregistré"""
-    devices = load_devices()
-    if device not in devices:
-        devices.append(device)
-        with open(DEVICES_FILE, "w") as f:
-            json.dump(devices, f, indent=2)
-
-
-def remove_device(device):
-    """Supprime un périphérique de la base"""
-    devices = load_devices()
-    new_devices = [d for d in devices if d != device]
-    with open(DEVICES_FILE, "w") as f:
-        json.dump(new_devices, f, indent=2)
+    with open(DEVICES_FILE, "r+") as f:
+        try:
+            data = json.load(f)
+        except json.JSONDecodeError:
+            data = []
+        if device not in data:
+            data.append(device)
+            f.seek(0)
+            json.dump(data, f, indent=2)
+            f.truncate()
 
 def get_devices():
-    if not os.path.exists(PAIRED_DEVICES_FILE):
+    if not os.path.exists(DEVICES_FILE):
         return []
-    with open(PAIRED_DEVICES_FILE, "r") as f:
-        try:
-            return json.load(f)
-        except json.JSONDecodeError:
-            return []
+    with open(DEVICES_FILE, "r") as f:
+        raw_devices = json.load(f)
 
-__all__ = [
-    "save_device",
-    "get_devices",
-    "get_device",
-    "EEPDevice"
-]
+    enriched = []
+    for d in raw_devices:
+        eep_file = f"/app/eep/D2-{d['eep_code']}.xml"
+        eep_info = parse_eep_file(eep_file) if os.path.exists(eep_file) else None
+        enriched.append({
+            "id": d.get("id"),
+            "eep_code": d.get("eep_code"),
+            "eep_file": eep_file if os.path.exists(eep_file) else None,
+            "eep_info": eep_info
+        })
+    return enriched
