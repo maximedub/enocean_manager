@@ -1,59 +1,65 @@
 import time
 import threading
+import os
 from enocean.protocol.packet import RadioPacket
-from app.communicator import communicator
-from app.devices import save_device
+from devices import save_device
+from communicator import communicator
 
-# Flag pour éviter les appairages concurrents
-_appairage_en_cours = False
+EEP_XML_DIRECTORY = "/app/eep"
+SENDER_ID = communicator.sender_id
 
-def start_pairing():
-    """Démarre un thread d'écoute pour détecter un appairage entrant"""
-    global _appairage_en_cours
-    if _appairage_en_cours:
-        return {"status": "Appairage déjà en cours"}
+def send_pairing_signal(target_id):
+    for _ in range(3):
+        communicator.send(RadioPacket.create_packet(rorg=0xF6, sender=SENDER_ID, destination=target_id, data=[0x70]))
+        time.sleep(0.1)
+        communicator.send(RadioPacket.create_packet(rorg=0xF6, sender=SENDER_ID, destination=target_id, data=[0x00]))
+        time.sleep(0.1)
 
-    _appairage_en_cours = True
+def appairer_auto(callback=None):
+    print("🔍 En attente d'une trame pour appairage...")
+    communicator._buffer.clear()
 
-    def listen_and_pair():
-        try:
-            print("[Appairage] Attente de trame entrante...")
-            start_time = time.time()
-            while time.time() - start_time < 10:
-                packet = communicator.receive.get(timeout=1.0)
-                if isinstance(packet, RadioPacket) and packet.rorg == 0xF6:
-                    sender_id = packet.sender_int
-                    sender_hex = [int(b, 16) for b in f"{sender_id:08X}"]
-                    print(f"[Appairage] Trame reçue de : {sender_hex}")
-                    
-                    # Sauvegarde dans la base
-                    save_device(sender_hex)
+    while True:
+        packet = communicator.receive()
+        if packet and hasattr(packet, 'sender_hex'):
+            sender_id = packet.sender
+            data = list(packet.data)
+            rorg = packet.rorg
+            eep_func = data[0] if len(data) > 0 else 0x00
+            eep_type = data[1] if len(data) > 1 else 0x00
 
-                    # Réponse : envoyer 3 impulsions
-                    for _ in range(3):
-                        communicator.send(RadioPacket.create_packet(
-                            rorg=0xF6,
-                            sender=communicator.sender_id,
-                            destination=sender_hex,
-                            data=[0x70]
-                        ))
-                        time.sleep(0.1)
-                        communicator.send(RadioPacket.create_packet(
-                            rorg=0xF6,
-                            sender=communicator.sender_id,
-                            destination=sender_hex,
-                            data=[0x00]
-                        ))
-                        time.sleep(0.1)
+            eep_info = find_matching_eep_file(rorg, eep_func, eep_type)
 
-                    print("[Appairage] Trame d’appairage envoyée.")
-                    break
-        except Exception as e:
-            print(f"[Appairage] Erreur : {e}")
-        finally:
-            global _appairage_en_cours
-            _appairage_en_cours = False
+            save_device(sender_id)
 
-    threading.Thread(target=listen_and_pair, daemon=True).start()
-    return {"status": "Appairage lancé"}
+            result = {
+                "target_id": sender_id,
+                "eep_code": eep_info.get("eep"),
+                "eep_file": eep_info.get("file") if eep_info.get("status") == "found" else None,
+                "message": eep_info.get("message"),
+                "status": eep_info.get("status")
+            }
 
+            if callback:
+                callback(result)
+
+            return result
+
+def find_matching_eep_file(rorg, func, type_):
+    """Recherche un fichier XML de type D2-XX-YY dans le répertoire /app/eep"""
+    eep_code = f"D2-{func:02X}-{type_:02X}"
+    filename = f"{eep_code}.xml"
+    path = os.path.join(EEP_XML_DIRECTORY, filename)
+    if os.path.exists(path):
+        return {
+            "status": "found",
+            "eep": eep_code,
+            "file": filename,
+            "path": path
+        }
+    else:
+        return {
+            "status": "missing",
+            "eep": eep_code,
+            "message": f"Fichier EEP XML manquant : {filename}"
+        }
