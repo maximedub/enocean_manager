@@ -34,6 +34,15 @@ def remove_device(device):
     with open(DEVICES_FILE, "w") as f:
         json.dump(new_devices, f, indent=2)
 
+def get_devices():
+    if not os.path.exists(PAIRED_DEVICES_FILE):
+        return []
+    with open(PAIRED_DEVICES_FILE, "r") as f:
+        try:
+            return json.load(f)
+        except json.JSONDecodeError:
+            return []
+
 __all__ = [
     "save_device",
     "get_devices",
