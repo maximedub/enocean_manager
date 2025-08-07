@@ -34,3 +34,9 @@ def remove_device(device):
     with open(DEVICES_FILE, "w") as f:
         json.dump(new_devices, f, indent=2)
 
+__all__ = [
+    "save_device",
+    "get_devices",
+    "get_device",
+    "EEPDevice"
+]
