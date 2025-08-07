@@ -1,43 +1,46 @@
-from flask import Flask, request, jsonify, render_template
-from communicator import communicator, SENDER_ID
-from enocean.protocol.packet import RadioPacket
-from devices import get_devices, save_device
-from pairing import start_pairing_listener
-from eep import load_eep_profiles
-import threading
-import os
+from flask import Flask, jsonify, render_template
+from devices import get_devices
+from pairing import appairer_auto
+from communicator import communicator
 
 app = Flask(__name__, template_folder="templates")
 
 @app.route("/")
 def index():
-    return render_template("index.html", devices=get_devices())
+    devices = get_devices()
+    return render_template("index.html", devices=devices)
 
 @app.route("/appairer", methods=["POST"])
 def appairer():
-    # Le processus d’écoute est lancé en tâche de fond
-    threading.Thread(target=start_pairing_listener, daemon=True).start()
-    return jsonify({"status": "Mode appairage lancé – en attente de trame"})
-
-@app.route("/devices", methods=["GET"])
-def list_devices():
-    return jsonify(get_devices())
+    try:
+        result = appairer_auto()
+        if result["status"] == "missing":
+            return jsonify({
+                "status": "incomplet",
+                "message": result["message"],
+                "target_id": result["target_id"],
+                "eep_code": result["eep_code"]
+            }), 404
+        return jsonify({
+            "status": "Appairage réussi",
+            "target_id": result["target_id"],
+            "eep_code": result["eep_code"],
+            "eep_file": result["eep_file"]
+        })
+    except Exception as e:
+        return jsonify({"status": "Erreur", "error": str(e)}), 500
 
 @app.route("/etat", methods=["GET"])
 def etat():
     return jsonify({
         "status": "Actif",
         "port": communicator.port,
-        "sender_id": SENDER_ID
+        "sender_id": communicator.sender_id
     })
 
-@app.route("/eep", methods=["GET"])
-def list_eep_profiles():
-    try:
-        profils = load_eep_profiles()
-        return jsonify(profils)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+@app.route("/devices", methods=["GET"])
+def list_devices():
+    return jsonify(get_devices())
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
