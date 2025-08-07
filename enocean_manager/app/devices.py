@@ -1,7 +1,9 @@
 import os
 import json
+from eep import EEPDevice
 
-DEVICES_FILE = "/data/devices.json"
+PAIRED_DEVICES_FILE = os.getenv("PAIRED_DEVICES_FILE", "/data/devices.json")
+
 
 # Initialisation du fichier si inexistant
 if not os.path.exists(DEVICES_FILE):
