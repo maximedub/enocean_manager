@@ -1,27 +1,21 @@
 name: "EnOcean Manager"
-version: "0.0.3a"
+version: "0.0.3b"
 slug: "enocean_manager"
-description: "Gérez l'appairage et la configuration de vos appareils EnOcean depuis Home Assistant"
+description: "Add-on Home Assistant pour gestion avancée EnOcean (profils EEP JSON)"
 arch:
-  - amd64
-  - armv7
   - aarch64
-startup: application
+  - armv7
+  - amd64
+startup: services
 boot: auto
-
-ingress: true
-ingress_port: 5000
-panel_icon: "mdi:dolphin"
-panel_title: "EnOcean Manager"
-
-host_network: false
-usb: true
-uart: true
-
-url: "https://github.com/maximedub/enocean_manager"
-
-devices:
-  - /dev/ttyUSB0
-
-options: {}
-schema: {}
+init: false
+host_network: true
+map:
+  - config:rw
+options:
+  serial_port: "/dev/ttyUSB0"
+  json_dir: "/data/profile_json"
+schema:
+  serial_port: str
+  json_dir: str
+image: "local/enocean_manager:{arch}"
