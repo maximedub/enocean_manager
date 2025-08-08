@@ -1,3 +1,9 @@
-python-enocean>=0.7.2
-beautifulsoup4>=4.12.0
-lxml>=4.9.0
+# Dépendances Python de l’add-on
+
+# ⚠️ Le bon nom du paquet est "enocean" (et non "python-enocean").
+# On pointe sur le dépôt Git officiel pour s'assurer d'une version récente compatible.
+enocean @ git+https://github.com/kipe/enocean.git
+
+# Facultatif mais utile : ces libs sont déjà dans ton projet et certaines parties d'enocean les utilisent.
+beautifulsoup4>=4.12
+lxml>=4.9
