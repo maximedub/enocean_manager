@@ -1,5 +1,5 @@
 name: "EnOcean Manager"
-version: "0.0.5"                 # ↑ bump pour forcer un rebuild
+version: "0.0.6"  # ← bump
 slug: "enocean_manager"
 description: "Add-on Home Assistant pour gestion avancée EnOcean (profils EEP JSON)"
 url: "https://github.com/maximedub/enocean_manager"
@@ -20,4 +20,4 @@ options:
 schema:
   serial_port: str
   json_dir: str
-# ⚠️ NE PAS mettre 'image:' (sinon HA essaie de pull au lieu de build)
+# NE PAS ajouter 'image:'
