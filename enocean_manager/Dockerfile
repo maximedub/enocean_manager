@@ -1,21 +1,24 @@
-name: "EnOcean Manager"
-version: "1.0.0"
-slug: "enocean_manager"
-description: "Add-on Home Assistant pour gestion avancée EnOcean (profils EEP JSON)"
-arch:
-  - aarch64
-  - armv7
-  - amd64
-startup: services
-boot: auto
-init: false
-host_network: true
-map:
-  - config:rw
-options:
-  serial_port: "/dev/ttyUSB0"
-  json_dir: "/data/profile_json"
-schema:
-  serial_port: str
-  json_dir: str
-image: "local/enocean_manager:{arch}"
+ARG BUILD_FROM=ghcr.io/hassio-addons/base:16.2.3
+FROM ${BUILD_FROM}
+
+ENV LANG=C.UTF-8 \
+    PYTHONUNBUFFERED=1
+
+# Installer les dépendances Python
+COPY requirements.txt /tmp/requirements.txt
+RUN python3 -m pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Copier le code de l’application
+COPY ../enocean_manager /opt/enocean_manager
+
+# Copier les profils JSON dans /data (persistant)
+RUN mkdir -p /data/profile_json && \
+    if [ -d "/opt/enocean_manager/app/profile_json" ]; then \
+      cp -r /opt/enocean_manager/app/profile_json/* /data/profile_json/ || true; \
+    fi
+
+# Script d’entrée
+COPY run.sh /run.sh
+RUN chmod a+x /run.sh
+
+CMD [ "/run.sh" ]
