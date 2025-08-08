@@ -19,4 +19,3 @@ options:
 schema:
   serial_port: str                           # Schéma de validation des options
   json_dir: str
-image: "local/enocean_manager:{arch}"        # Nom d’image local (ou GHCR si tu pousses)
