@@ -1,22 +1,21 @@
-# Base officielle pour add-ons Home Assistant (Alpine + s6)
+# Image de base dédiée aux add-ons (pas le base image Home Assistant)
 ARG BUILD_FROM=ghcr.io/hassio-addons/base:16.2.3
 FROM ${BUILD_FROM}
 
 ENV LANG=C.UTF-8 \
     PYTHONUNBUFFERED=1
 
-# Assure pip présent (au cas où) + build deps minimales
-# (la base a souvent python3/pip déjà, mais c'est safe)
+# Outils de build + python/pip (souvent déjà là, mais safe)
 RUN apk add --no-cache python3 py3-pip gcc musl-dev libffi-dev
 
-# Installer les dépendances Python
+# Dépendances Python
 COPY requirements.txt /tmp/requirements.txt
 RUN python3 -m pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Copier le code de l’application (contexte = dossier enocean_manager/)
+# Code de l’add-on (contexte = dossier enocean_manager/)
 COPY . /opt/enocean_manager
 
-# Préparer /data/profile_json (persistant) et y copier les profils du repo si présents
+# Copier les profils JSON en volume persistant
 RUN mkdir -p /data/profile_json && \
     if [ -d "/opt/enocean_manager/app/profile_json" ]; then \
       cp -r /opt/enocean_manager/app/profile_json/* /data/profile_json/ || true; \
