@@ -7,11 +7,13 @@ ENV LANG=C.UTF-8 \
     PYTHONUNBUFFERED=1
 
 # Installer les dépendances Python de l’add-on
-COPY requirements.txt /tmp/requirements.txt
-RUN python3 -m pip install --no-cache-dir -r /tmp/requirements.txt
+# (si tu utilises un requirements.txt à côté de ce Dockerfile, décommente ces lignes)
+# COPY requirements.txt /tmp/requirements.txt
+# RUN python3 -m pip install --no-cache-dir -r /tmp/requirements.txt
 
-# Copier le code de l’application dans l’image
-COPY ../enocean_manager /opt/enocean_manager
+# Copier l’intégralité du code de l’add-on (contexte = dossier enocean_manager/)
+# ✅ Important : on utilise COPY . car le Dockerfile est dans enocean_manager/
+COPY . /opt/enocean_manager
 
 # Préparer /data/profile_json (persistant) et y copier les profils du repo si présents
 RUN mkdir -p /data/profile_json && \
@@ -19,7 +21,7 @@ RUN mkdir -p /data/profile_json && \
       cp -r /opt/enocean_manager/app/profile_json/* /data/profile_json/ || true; \
     fi
 
-# Script d’entrée de l’add-on
+# Script d’entrée
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh
 
