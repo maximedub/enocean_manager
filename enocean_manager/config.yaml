@@ -1,5 +1,5 @@
 name: "EnOcean Manager"
-version: "0.0.2n"
+version: "0.0.3a"
 slug: "enocean_manager"
 description: "Gérez l'appairage et la configuration de vos appareils EnOcean depuis Home Assistant"
 arch:
