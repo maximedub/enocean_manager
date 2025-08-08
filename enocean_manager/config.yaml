@@ -1,21 +1,23 @@
-name: "EnOcean Manager"                    # Nom affiché dans l’Add-on Store
-version: "0.0.3b"                           # Version de l’add-on
-slug: "enocean_manager"                    # Identifiant unique
+name: "EnOcean Manager"
+version: "0.0.3c"                      # reste en SemVer strict
+slug: "enocean_manager"
 description: "Add-on Home Assistant pour gestion avancée EnOcean (profils EEP JSON)"
-url: "https://github.com/maximedub/enocean_manager"  # Lien du dépôt
-arch:                                        # Architectures supportées
+url: "https://github.com/maximedub/enocean_manager"
+arch:
   - aarch64
   - armv7
   - amd64
-startup: services                            # Démarrer après les services de base
-boot: auto                                   # Démarrage auto avec HA
-init: false                                  # Pas d’init spécifique
-host_network: true                           # Accès réseau de l’hôte (si inutile, mettre false)
+startup: services
+boot: auto
+init: false
+host_network: true
+uart: true                            # <-- donne accès aux ports /dev/tty* à l’add-on
 map:
-  - config:rw                                # Monte /config (optionnel)
+  - config:rw
 options:
-  serial_port: "/dev/ttyUSB0"               # Port série du dongle
-  json_dir: "/data/profile_json"            # Dossier interne où résident les profils
+  serial_port: "/dev/ttyUSB0"
+  json_dir: "/data/profile_json"
 schema:
-  serial_port: str                           # Schéma de validation des options
+  serial_port: str
   json_dir: str
+# pas de 'image:' -> build local
