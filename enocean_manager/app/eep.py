@@ -21,7 +21,7 @@ from typing import Any, Dict, List, Optional  # Types pour clarté
 
 # Constante : sous-dossier par défaut où se trouvent les profils JSON
 DEFAULT_EEP_DIR = os.environ.get("EEP_JSON_DIR") or os.path.join(
-    os.path.dirname(__file__), "eep"
+    os.path.dirname(__file__), "profiles_json"
 )
 
 
