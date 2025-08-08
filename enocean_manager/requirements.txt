@@ -1,3 +1,3 @@
-beautifulsoup4>=4.12.0
-lxml>=4.9.0
-python-enocean>=0.7.2
+beautifulsoup4>=4.12.0        # bs4 si besoin, pas obligatoire pour notre lecture JSON
+lxml>=4.9.0                   # parseur XML fiable (utile si d’autres libs en ont besoin)
+python-enocean>=0.7.2         # lib EnOcean Python
