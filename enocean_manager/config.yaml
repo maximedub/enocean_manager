@@ -1,5 +1,5 @@
 name: "EnOcean Manager"
-version: "0.0.3c"                      # reste en SemVer strict
+version: "0.0.5"                 # ↑ bump pour forcer un rebuild
 slug: "enocean_manager"
 description: "Add-on Home Assistant pour gestion avancée EnOcean (profils EEP JSON)"
 url: "https://github.com/maximedub/enocean_manager"
@@ -11,7 +11,7 @@ startup: services
 boot: auto
 init: false
 host_network: true
-uart: true                            # <-- donne accès aux ports /dev/tty* à l’add-on
+uart: true
 map:
   - config:rw
 options:
@@ -20,4 +20,4 @@ options:
 schema:
   serial_port: str
   json_dir: str
-# pas de 'image:' -> build local
+# ⚠️ NE PAS mettre 'image:' (sinon HA essaie de pull au lieu de build)
