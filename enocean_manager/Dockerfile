@@ -1,21 +1,25 @@
-# Base dédiée aux add-ons (OK avec pip, pas de PEP 668)
-ARG BUILD_FROM=ghcr.io/hassio-addons/base:16.2.3
+# Base Home Assistant (PEP 668) + virtualenv pour autoriser pip
+ARG BUILD_FROM=ghcr.io/home-assistant/aarch64-base:latest
 FROM ${BUILD_FROM}
 
-ENV LANG=C.UTF-8 \
-    PYTHONUNBUFFERED=1
-
-# Outils build + python/pip (souvent déjà là, mais safe)
+# Outils nécessaires
 RUN apk add --no-cache python3 py3-pip gcc musl-dev libffi-dev
 
-# Dépendances Python
+# Log de debug pour vérifier la base dans le build log
+RUN echo "BASE_IMAGE=ghcr.io/home-assistant/aarch64-base:latest"
+
+# Créer un venv pour contourner PEP 668
+RUN python3 -m venv /opt/venv
+ENV PATH="/opt/venv/bin:${PATH}"
+
+# Dépendances Python dans le venv
 COPY requirements.txt /tmp/requirements.txt
-RUN python3 -m pip install --no-cache-dir -r /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 # Code de l’add-on (contexte = dossier enocean_manager/)
 COPY . /opt/enocean_manager
 
-# Copier les profils JSON en volume persistant
+# Copier les profils JSON en volume persistant (si présents dans le repo)
 RUN mkdir -p /data/profile_json && \
     if [ -d "/opt/enocean_manager/app/profile_json" ]; then \
       cp -r /opt/enocean_manager/app/profile_json/* /data/profile_json/ || true; \
@@ -23,6 +27,6 @@ RUN mkdir -p /data/profile_json && \
 
 # Script d’entrée
 COPY run.sh /run.sh
-RUN chmod a+x /run.sh
+RUN chmod +x /run.sh
 
 CMD [ "/run.sh" ]
