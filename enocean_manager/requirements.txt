@@ -1,9 +1,11 @@
 # Dépendances Python de l’add-on
+# ------------------------------
+# bs4/lxml : utiles si besoin d’XML ailleurs, sans impact si on lit les EEP en JSON
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
 
-# ⚠️ Le bon nom du paquet est "enocean" (et non "python-enocean").
-# On pointe sur le dépôt Git officiel pour s'assurer d'une version récente compatible.
-enocean @ git+https://github.com/kipe/enocean.git
-
-# Facultatif mais utile : ces libs sont déjà dans ton projet et certaines parties d'enocean les utilisent.
-beautifulsoup4>=4.12
-lxml>=4.9
+# Bibliothèque EnOcean :
+# - Le paquet PyPI "python-enocean" n’existe pas (d’où l’erreur de résolution).
+# - Le paquet PyPI "enocean" existe, mais pour rester à jour/compatible Alpine,
+#   on prend la source officielle GitHub :
+git+https://github.com/kipe/enocean.git
