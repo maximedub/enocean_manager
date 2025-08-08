@@ -1,15 +1,8 @@
-# Dockerfile de l’add-on Home Assistant EnOcean
-# ----------------------------------------------
-# - Base HA officielle (Alpine + s6 overlay)
-# - venv Python pour éviter PEP 668
-# - Installation des dépendances depuis requirements.txt
-# - Copie du code puis exécution via run.sh
-
+# Image de base fournie par Home Assistant (le Supervisor injecte BUILD_FROM)
 ARG BUILD_FROM
 FROM $BUILD_FROM
 
-# ---- Paquets systèmes utiles (Alpine) ----
-# gcc/musl-dev/libffi-dev utiles pour compiler certaines roues le cas échéant
+# ---- Paquets système utiles ----
 RUN apk add --no-cache \
       python3 \
       py3-pip \
@@ -17,28 +10,28 @@ RUN apk add --no-cache \
       musl-dev \
       libffi-dev
 
-# ---- Variables d'environnement utiles ----
-# IMPORTANT : chaque var doit respecter la forme NOM=valeur
-ENV PYTHONDONTWRITEBYTECODE=1 \  # Évite la création des .pyc
-    PYTHONUNBUFFERED=1 \         # Logs non bufferisés
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# ---- Environnement virtuel Python (évite PEP 668) ----
+# ---- Venv Python pour éviter PEP 668 (environment externally managed) ----
 RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:${PATH}"
 
-# ---- Dépendances Python dans le venv ----
+# IMPORTANT : une variable par ligne, SANS commentaires inline
+ENV PATH="/opt/venv/bin:${PATH}"
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# ---- Dépendances Python (via l’index musllinux de HA + PyPI) ----
 COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
- && pip install --no-cache-dir -r /tmp/requirements.txt
+RUN pip install --no-cache-dir \
+      --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
+      -r /tmp/requirements.txt
 
 # ---- Code de l’add-on (contexte = dossier enocean_manager/) ----
-# On copie le dossier entier de l’app Python dans /opt/enocean_manager
+# Adapte ce chemin si besoin : on copie le dossier de ton app dans /opt/enocean_manager
 COPY ../enocean_manager /opt/enocean_manager
 
 # ---- Script d’entrée ----
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh
 
-# ---- Commande de démarrage ----
+# ---- Démarrage ----
 CMD [ "/run.sh" ]
