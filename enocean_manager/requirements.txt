@@ -1,4 +1,3 @@
-# Dépendances Python de l’add-on
-python-enocean>=0.7.2           # communication EnOcean
-beautifulsoup4>=4.12.0          # optionnel (mais on garde)
-lxml>=4.9.0                     # optionnel (mais on garde)
+python-enocean>=0.7.2
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
