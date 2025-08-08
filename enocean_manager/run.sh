@@ -8,7 +8,7 @@ JSON_DIR=$(jq -r '.json_dir // "/data/profile_json"' "$OPTIONS_FILE")  # Lit jso
 
 export EEP_JSON_DIR="$JSON_DIR"                   # Expose le chemin aux modules Python
 
-echo "[EnOcean Manager] SERIAL_PORT=$SERIAL_PORT"  # Log d’info au démarrage
+echo "[EnOcean Manager] SERIAL_PORT=$SERIAL_PORT" # Log d’info au démarrage
 echo "[EnOcean Manager] EEP_JSON_DIR=$EEP_JSON_DIR"
 
 # Lance l’application Python (point d’entrée enocean_manager/app/main.py)
