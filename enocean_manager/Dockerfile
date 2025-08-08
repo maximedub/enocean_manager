@@ -1,18 +1,19 @@
-# Base officielle pour add-ons Home Assistant (gère s6, jq, /data, etc.)
+# Base officielle pour add-ons Home Assistant (Alpine + s6)
 ARG BUILD_FROM=ghcr.io/hassio-addons/base:16.2.3
 FROM ${BUILD_FROM}
 
-# Variables d’environnement basiques
 ENV LANG=C.UTF-8 \
     PYTHONUNBUFFERED=1
 
-# Installer les dépendances Python de l’add-on
-# (si tu utilises un requirements.txt à côté de ce Dockerfile, décommente ces lignes)
-# COPY requirements.txt /tmp/requirements.txt
-# RUN python3 -m pip install --no-cache-dir -r /tmp/requirements.txt
+# Assure pip présent (au cas où) + build deps minimales
+# (la base a souvent python3/pip déjà, mais c'est safe)
+RUN apk add --no-cache python3 py3-pip gcc musl-dev libffi-dev
 
-# Copier l’intégralité du code de l’add-on (contexte = dossier enocean_manager/)
-# ✅ Important : on utilise COPY . car le Dockerfile est dans enocean_manager/
+# Installer les dépendances Python
+COPY requirements.txt /tmp/requirements.txt
+RUN python3 -m pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Copier le code de l’application (contexte = dossier enocean_manager/)
 COPY . /opt/enocean_manager
 
 # Préparer /data/profile_json (persistant) et y copier les profils du repo si présents
@@ -25,5 +26,4 @@ RUN mkdir -p /data/profile_json && \
 COPY run.sh /run.sh
 RUN chmod a+x /run.sh
 
-# L’add-on démarre via run.sh (lit /data/options.json, exporte EEP_JSON_DIR)
 CMD [ "/run.sh" ]
