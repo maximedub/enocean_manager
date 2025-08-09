@@ -1,6 +1,6 @@
 name: "EnOcean UTE Teach-In"
 version: "0.1.0"
-slug: "enocean_ute_teachin"
+slug: "enocean_manager"
 description: "Service HTTP pour appairer des actionneurs EnOcean via UTE (RORG 0xD4) et enregistrer automatiquement les entités dans Home Assistant."
 arch:
   - aarch64
