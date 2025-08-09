@@ -1,0 +1,6 @@
+# Dépendances Python de l’add-on
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# La lib “python-enocean” n’a pas (toujours) de wheel musl/dispo sur l’index HA -> on la prend depuis GitHub
+git+https://github.com/kipe/enocean.git
