@@ -8,8 +8,10 @@ ENV PYTHONUNBUFFERED=1
 
 # Dépendances système utiles pour lxml, etc.
 RUN apk add --no-cache \
-      python3 py3-pip \
-      gcc musl-dev libffi-dev libxml2-dev libxslt-dev
+    python3 py3-pip \
+    gcc musl-dev libffi-dev \
+    libxml2-dev libxslt-dev \
+    git
 
 # Crée un venv pour installer les paquets Python
 RUN python3 -m venv /opt/venv
