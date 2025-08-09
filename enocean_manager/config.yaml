@@ -14,7 +14,7 @@ ports:
 
 options:
   serial_port: "/dev/serial/by-id/usb-EnOcean_GmbH_EnOcean_USB_300_DC_FT4T6Q61-if00-port0"
-  eep_dir: "/app/profile_json"
+  eep_dir: "/eep_json"
   log_level: "INFO"
   listen_timeout: 12            # secondes (mode AUTO)
   manufacturer_id: 65535        # 0xFFFF par défaut (générique)
