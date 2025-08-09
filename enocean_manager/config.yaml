@@ -42,4 +42,4 @@ devices:
 usb: true
 uart: true
 
-image: "local/enocean_ute_teachin-{arch}"
+#image: "local/enocean_ute_teachin-{arch}"
