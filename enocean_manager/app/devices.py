@@ -1,11 +1,8 @@
-import json
-import os
-from eep import parse_eep_file
+# app/devices.py
+import json, os
+from .eep_parser import parse_eep_file
 
-# Chemin vers le fichier JSON de persistance
 DEVICES_FILE = "/data/devices.json"
-
-# Initialise le fichier s'il n'existe pas
 if not os.path.exists(DEVICES_FILE):
     with open(DEVICES_FILE, "w") as f:
         json.dump([], f)
@@ -25,17 +22,10 @@ def save_device(device):
 def get_devices():
     if not os.path.exists(DEVICES_FILE):
         return []
-    with open(DEVICES_FILE, "r") as f:
-        raw_devices = json.load(f)
-
+    raw_devices = json.load(open(DEVICES_FILE))
     enriched = []
     for d in raw_devices:
-        eep_file = f"/app/eep/D2-{d['eep_code']}.xml"
-        eep_info = parse_eep_file(eep_file) if os.path.exists(eep_file) else None
-        enriched.append({
-            "id": d.get("id"),
-            "eep_code": d.get("eep_code"),
-            "eep_file": eep_file if os.path.exists(eep_file) else None,
-            "eep_info": eep_info
-        })
+        code = d.get("eep_code") or d.get("eep")
+        info = parse_eep_file(code) if code else None
+        enriched.append({**d, "eep_info": info})
     return enriched
