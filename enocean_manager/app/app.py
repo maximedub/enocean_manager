@@ -1,15 +1,13 @@
+# app/app.py
 from flask import Flask, jsonify, render_template
-from app.communicator import communicator
-from app.pairing import start_pairing_listener
-from app.devices import get_devices
-from app.eep_parser import download_eep_file, parse_eep_file
+from .communicator import communicator
+from .pairing import start_pairing_listener  # si tu as une fonction; sinon adapte
+from .devices import get_devices
+from .eep_parser import download_eep_file, parse_eep_file
 
 app = Flask(__name__, template_folder="templates")
 
-# Initialisation du communicateur série (thread en arrière-plan)
 communicator.start()
-
-# Lancement du thread de détection des trames Teach-In
 start_pairing_listener()
 
 @app.route("/")
@@ -22,25 +20,18 @@ def etat():
     return jsonify({
         "status": "Actif",
         "port": communicator.port,
-        "sender_id": communicator.sender_id,
+        "sender_id": getattr(communicator, "sender_id", None),
         "eep_fichier": download_eep_file(local_only=True)
     })
 
 @app.route("/download-eep", methods=["GET"])
 def download_eep():
-    try:
-        success = download_eep_file()
-        return jsonify({"status": "OK" if success else "Erreur"})
-    except Exception as e:
-        return jsonify({"status": "Erreur", "error": str(e)}), 500
+    ok_path = download_eep_file()
+    return jsonify({"status": "OK", "path": ok_path})
 
 @app.route("/parse-eep", methods=["GET"])
 def parse_eep():
-    try:
-        result = parse_eep_file()
-        return jsonify(result)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    return jsonify(parse_eep_file())
 
 @app.route("/devices", methods=["GET"])
 def list_devices():
