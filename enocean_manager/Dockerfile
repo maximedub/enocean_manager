@@ -1,31 +1,28 @@
-# Utilise l’image de base Home Assistant (arch remplacée par le Supervisor)
-ARG BUILD_FROM
+ARG BUILD_FROM=ghcr.io/home-assistant/aarch64-base:latest
 FROM $BUILD_FROM
 
-# Un runtime Python propre
-ENV PYTHONUNBUFFERED=1
-ENV PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# Paquets système (git requis pour pip install depuis un dépôt Git)
+# OS deps (Python, pip, git, compilos pour lxml, etc.)
 RUN apk add --no-cache \
-    python3 py3-pip \
-    git \
+    python3 py3-pip git \
     gcc musl-dev libffi-dev libxml2-dev libxslt-dev
 
-# Environnement virtuel
+# Venv pour éviter PEP 668
 RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:${PATH}"
+ENV PATH="/opt/venv/bin:$PATH"
 
-# Dépendances Python
+# Dépendances Python (index musllinux de Home Assistant pour wheels compatibles)
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir \
-      --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
-      -r /tmp/requirements.txt
+    --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
+    -r /tmp/requirements.txt
 
-# Code de l’addon
+# Code de l’add-on (assure-toi que le dossier source contient le package enocean_manager/)
 WORKDIR /opt/enocean_manager
 COPY . /opt/enocean_manager
-RUN chmod +x /opt/enocean_manager/run.sh
 
-# Point d’entrée (s6 overlay appelera ce script)
-CMD [ "/opt/enocean_manager/run.sh" ]
+# Variables utiles
+ENV EEP_JSON_DIR="/data/profile_json"
+
+# Entrée (s6 du base image lancera /run.sh)
+COPY run.sh /run.sh
+RUN chmod +x /run.sh
