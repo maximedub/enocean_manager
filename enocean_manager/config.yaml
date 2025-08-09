@@ -1,6 +1,6 @@
 name: "EnOcean Manager"
 slug: "enocean_manager"
-version: "0.0.7c"
+version: "0.0.7d"
 description: "Add-on Home Assistant pour gérer EnOcean à partir de profils EEP JSON."
 url: "https://github.com/maximedub/enocean_manager"
 arch:
@@ -14,7 +14,11 @@ init: false
 host_network: false
 uart: true          # pour mapper auto les ports série
 # apparmor: true    # (tu pourras ajouter un profil plus tard)
+ingress: true
+ingress_port: 8099  # si tu suis le CMD ci-dessus
+panel_icon: mdi:radio-tower
 map:
+  - data:rw         # /data pour tes profiles JSON et devices.json
   - config:rw
   - share:rw
   - addons:rw
