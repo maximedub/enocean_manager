@@ -1,23 +1,28 @@
 name: "EnOcean Manager"
-version: "0.0.7"                    # ↑ bump pour forcer un rebuild
 slug: "enocean_manager"
-description: "Add-on Home Assistant pour gestion avancée EnOcean (profils EEP JSON)"
+version: "0.0.7b"
+description: "Add-on Home Assistant pour gérer EnOcean à partir de profils EEP JSON."
 url: "https://github.com/maximedub/enocean_manager"
 arch:
   - aarch64
-  - armv7
   - amd64
+  - armv7
+  - armhf
+  - i386
 startup: services
-boot: auto
 init: false
-host_network: true
-uart: true
+host_network: false
+uart: true          # pour mapper auto les ports série
+# apparmor: true    # (tu pourras ajouter un profil plus tard)
 map:
   - config:rw
+  - share:rw
+  - addons:rw
 options:
   serial_port: "/dev/ttyUSB0"
   json_dir: "/data/profile_json"
 schema:
   serial_port: str
   json_dir: str
-# ⚠️ Ne mets PAS 'image:' pour laisser HA builder en local
+# Laisse "image" commenté pour forcer le build local :
+# image: "maximedub/enocean_manager-{arch}"
