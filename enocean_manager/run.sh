@@ -1,24 +1,13 @@
+# run.sh
 #!/usr/bin/with-contenv bashio
-set -euo pipefail
+set -e
 
-SERIAL_PORT="$(bashio::config 'serial_port')"
-JSON_DIR="$(bashio::config 'json_dir')"
-
-# Valeurs par défaut si non définies
-SERIAL_PORT="${SERIAL_PORT:-/dev/ttyUSB0}"
-JSON_DIR="${JSON_DIR:-/data/profile_json}"
-
-export EEP_JSON_DIR="$JSON_DIR"
-export PYTHONPATH="/opt/enocean_manager:${PYTHONPATH:-}"
-
-# Prépare le dossier persistant et copie les profils fournis par le repo au premier démarrage
+# Ensure the EEP JSON dir exists in /data (persisted volume)
+export EEP_JSON_DIR="${EEP_JSON_DIR:-/data/profile_json}"
 mkdir -p "$EEP_JSON_DIR"
-if [ -d "/opt/enocean_manager/app/profile_json" ]; then
-  cp -rn /opt/enocean_manager/app/profile_json/* "$EEP_JSON_DIR"/ 2>/dev/null || true
-fi
 
-bashio::log.info "SERIAL_PORT=$SERIAL_PORT"
-bashio::log.info "EEP_JSON_DIR=$EEP_JSON_DIR"
+# Serial port from add-on options or default
+export SERIAL_PORT="${SERIAL_PORT:-/dev/ttyUSB0}"
 
-# Démarre l'application
-exec python3 -m enocean_manager.app.main --serial-port "$SERIAL_PORT"
+# Start the Flask app via Gunicorn (Ingress terminates TLS; 8099 is a good default)
+exec /opt/venv/bin/gunicorn -b 0.0.0.0:8099 enocean_manager.app:app
