@@ -14,8 +14,8 @@ from __future__ import annotations  # Annotations futures
 from typing import Optional, Dict, Any  # Types
 import time  # Timeout d’écoute
 
-from .communicator import Communicator  # Couche de com
-from .eep import EEPRegistry, EEPProfile  # Accès aux profils JSON
+from enocean_manager.communicator import Communicator  # Couche de com
+from enocean_manager.eep import EEPRegistry, EEPProfile  # Accès aux profils JSON
 
 
 # Quelques RORG usuels (valeurs hex) ; à adapter selon ta pile de trames
