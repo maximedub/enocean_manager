@@ -1,5 +1,5 @@
 name: "EnOcean Manager"
-version: "0.0.7e"
+version: "0.0.7f"
 slug: "enocean_manager"
 description: "Add-on Home Assistant pour gérer EnOcean à partir de profils EEP JSON."
 url: "https://github.com/maximedub/enocean_manager"
@@ -19,9 +19,11 @@ ingress: true
 ingress_port: 8099
 panel_icon: mdi:radio-tower
 panel_title: "EnOcean"
+uart: true              # map auto des ports série
 
 # Répertoires mappés (persistants)
 map:
+  - type: data          # /data persistant pour devices.json et EEP JSON
   - data:rw
   - share:rw
 
