@@ -1,26 +1,32 @@
+# Dockerfile
 ARG BUILD_FROM
-FROM ${BUILD_FROM}
+FROM $BUILD_FROM
 
-# Paquets système (python, pip, git pour les deps VCS, build deps pour lxml etc.)
+# System deps (python, build tools, and git for VCS requirements)
 RUN apk add --no-cache \
-      python3 py3-pip git \
-      gcc musl-dev libffi-dev libxml2-dev libxslt-dev
+    python3 py3-pip \
+    gcc musl-dev libffi-dev libxml2-dev libxslt-dev \
+    git
 
-# Venv pour éviter PEP 668 et isoler pip
+# Create and use a venv
 RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"  
+ENV PATH="/opt/venv/bin:$PATH"
+ENV PYTHONUNBUFFERED=1
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Copie des deps puis install (utilise directement le pip du venv)
+# Copy requirements first (better cache)
 COPY requirements.txt /tmp/requirements.txt
 RUN /opt/venv/bin/pip install --no-cache-dir \
-      --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
-      -r /tmp/requirements.txt
+    --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
+    -r /tmp/requirements.txt
 
-# Copie du code
+# Copy the app
 WORKDIR /app
-COPY app/ /app/
+COPY enocean_manager /app/enocean_manager
+COPY templates /app/templates
+COPY run.sh /run.sh
+RUN chmod +x /run.sh
 
-# Expose le serveur Flask via Gunicorn
-# (Home Assistant Ingress écoute en 8099 par défaut côté add-on)
-ENV PYTHONUNBUFFERED=1
-CMD ["/opt/venv/bin/gunicorn","-b","0.0.0.0:8099","enocean_manager.app:app"]
+# The HA supervisor provides S6. With S6 v3 you normally set init: false in config.yaml.
+# We’ll use our run.sh as the command.
+CMD [ "/run.sh" ]
