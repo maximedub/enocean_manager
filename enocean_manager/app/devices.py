@@ -1,6 +1,6 @@
 # app/devices.py
 import json, os
-from .eep_parser import parse_eep_file
+from enocean_manager.eep_parser import parse_eep_file
 
 DEVICES_FILE = "/data/devices.json"
 if not os.path.exists(DEVICES_FILE):
