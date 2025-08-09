@@ -1,6 +1,6 @@
 # app/eep_parser.py
 import os
-from .eep import EEPRegistry
+from enocean_manager.eep import EEPRegistry
 
 # Dossier des JSON (monté par l’add-on, ex: /data/profile_json)
 _EEP_DIR = os.environ.get("EEP_JSON_DIR", "/data/profile_json")
