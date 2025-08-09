@@ -1,35 +1,26 @@
-# Base HA (le Supervisor injecte BUILD_FROM)
 ARG BUILD_FROM
-FROM $BUILD_FROM
+FROM ${BUILD_FROM}
 
-# Variables d'environnement sûres
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-# Dépendances système utiles pour lxml, etc.
+# Paquets système (python, pip, git pour les deps VCS, build deps pour lxml etc.)
 RUN apk add --no-cache \
-    python3 py3-pip \
-    gcc musl-dev libffi-dev \
-    libxml2-dev libxslt-dev \
-    git
+      python3 py3-pip git \
+      gcc musl-dev libffi-dev libxml2-dev libxslt-dev
 
-# Crée un venv pour installer les paquets Python
+# Venv pour éviter PEP 668 et isoler pip
 RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:${PATH}"
+ENV PATH="/opt/venv/bin:$PATH"  # <-- pas de commentaire après
 
-# Dépendances Python (avec index musllinux de HA)
+# Copie des deps puis install (utilise directement le pip du venv)
 COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir \
+RUN /opt/venv/bin/pip install --no-cache-dir \
       --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
       -r /tmp/requirements.txt
 
-# Code de l’add-on (on reste DANS le dossier de l’add-on)
-COPY app /opt/enocean_manager/app
-COPY run.sh /run.sh
-RUN chmod a+x /run.sh
+# Copie du code
+WORKDIR /app
+COPY app/ /app/
 
-# Assure la découverte du package au runtime
-ENV PYTHONPATH="/opt/enocean_manager:${PYTHONPATH}"
-
-# Entrypoint
-CMD [ "/run.sh" ]
+# Expose le serveur Flask via Gunicorn
+# (Home Assistant Ingress écoute en 8099 par défaut côté add-on)
+ENV PYTHONUNBUFFERED=1
+CMD ["/opt/venv/bin/gunicorn","-b","0.0.0.0:8099","enocean_manager.app:app"]
