@@ -10,6 +10,7 @@ Ajouts :
 from __future__ import annotations  # Annotations futures
 import threading  # Thread d'écoute asynchrone
 import time  # Temporisation simple
+import os
 from typing import Callable, Iterable, Optional, List, Any  # Types
 
 # NOTE : Les imports réels de ta pile EnOcean restent inchangés.
@@ -35,6 +36,7 @@ class Communicator:
 
     def __init__(self, port: Optional[str] = None, baudrate: int = 57600) -> None:
         # Port série (ex : "/dev/ttyUSB0"), None -> autodétection si lib le gère
+        self.sender_id = None
         self.port = port
         self.baudrate = baudrate
         # Instance du communicateur de la lib python-enocean (ou équivalent)
@@ -122,3 +124,7 @@ class Communicator:
                 time.sleep(0.01)
         finally:
             self.remove_listener(_collector)
+communicator = Communicator(
+    port=os.environ.get("SERIAL_PORT", "/dev/ttyUSB0"),
+    baudrate=57600,
+)
