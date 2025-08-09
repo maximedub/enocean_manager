@@ -1,27 +1,24 @@
 #!/usr/bin/with-contenv bashio
-# ^ utilise l’environnement s6-overlay + bashio fourni par la base HA
+set -euo pipefail
 
-set -euo pipefail                                   # Mode strict : stop sur erreur
-IFS=$'\n\t'
+SERIAL_PORT="$(bashio::config 'serial_port')"
+JSON_DIR="$(bashio::config 'json_dir')"
 
-# --- Chemins et options HA ---
-OPTIONS_FILE="/data/options.json"                   # Fichier d’options injecté par le Supervisor
+# Valeurs par défaut si non définies
+SERIAL_PORT="${SERIAL_PORT:-/dev/ttyUSB0}"
+JSON_DIR="${JSON_DIR:-/data/profile_json}"
 
-# Lit les options utilisateur (avec valeurs par défaut)
-SERIAL_PORT=$(jq -r '.serial_port // "/dev/ttyUSB0"' "$OPTIONS_FILE")   # Port série du dongle
-JSON_DIR=$(jq -r '.json_dir // "/data/profile_json"' "$OPTIONS_FILE")    # Dossier des profils EEP JSON
+export EEP_JSON_DIR="$JSON_DIR"
+export PYTHONPATH="/opt/enocean_manager:${PYTHONPATH:-}"
 
-# --- Expose le chemin pour l’app Python ---
-export EEP_JSON_DIR="$JSON_DIR"                     # eep.py le lit pour trouver les .json
+# Prépare le dossier persistant et copie les profils fournis par le repo au premier démarrage
+mkdir -p "$EEP_JSON_DIR"
+if [ -d "/opt/enocean_manager/app/profile_json" ]; then
+  cp -rn /opt/enocean_manager/app/profile_json/* "$EEP_JSON_DIR"/ 2>/dev/null || true
+fi
 
-# --- Logs de démarrage ---
-bashio::log.info "EnOcean Manager - SERIAL_PORT=${SERIAL_PORT}"
-bashio::log.info "EnOcean Manager - EEP_JSON_DIR=${EEP_JSON_DIR}"
+bashio::log.info "SERIAL_PORT=$SERIAL_PORT"
+bashio::log.info "EEP_JSON_DIR=$EEP_JSON_DIR"
 
-# --- S’assure que le dossier des profils existe ---
-mkdir -p "$EEP_JSON_DIR"                            # Crée le dossier si manquant
-
-# --- Lance l’application Python via le venv ---
-# On appelle explicitement le Python du venv pour éviter toute ambiguïté.
-exec /opt/venv/bin/python -m enocean_manager.app.main --serial-port "$SERIAL_PORT"
-#                      ^ module main de ton app, qui importe communicator/eep/pairing
+# Démarre l'application
+exec python3 -m enocean_manager.app.main --serial-port "$SERIAL_PORT"
