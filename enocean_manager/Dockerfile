@@ -1,27 +1,20 @@
-# Dockerfile (in your add-on folder)
-ARG BUILD_FROM
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.19
 FROM ${BUILD_FROM}
 
-# System deps
-RUN apk add --no-cache \
-    python3 py3-pip \
-    git \
-    gcc musl-dev libffi-dev \
-    libxml2-dev libxslt-dev
+RUN apk add --no-cache python3 py3-pip
 
-# Create & use venv (avoids PEP 668)
-RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:${PATH}"
+WORKDIR /app
+COPY requirements.txt /app/
+RUN pip3 install --no-cache-dir -r /app/requirements.txt
 
-# Python deps (VCS install needs git)
-COPY requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir \
-      --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
-      -r /tmp/requirements.txt
+COPY app.py /app/
+COPY enocean_esp3.py /app/
+COPY eep_loader.py /app/
+COPY yaml_writer.py /app/
+COPY run.sh /app/
+RUN chmod +x /app/run.sh
 
-# App code
-WORKDIR /opt/enocean_manager
-COPY . /opt/enocean_manager
+# Dossier EEP par défaut (vous pourrez aussi monter le vôtre)
+RUN mkdir -p /app/eep_json
 
-# s6-overlay calls /run.sh
-CMD [ "/run.sh" ]
+CMD ["/app/run.sh"]
