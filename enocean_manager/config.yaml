@@ -1,6 +1,6 @@
 name: "EnOcean Manager"
 slug: "enocean_manager"
-version: "0.0.7b"
+version: "0.0.7c"
 description: "Add-on Home Assistant pour gérer EnOcean à partir de profils EEP JSON."
 url: "https://github.com/maximedub/enocean_manager"
 arch:
