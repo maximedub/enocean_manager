@@ -1,28 +1,20 @@
 # app.py
 import os
 from flask import Flask, jsonify, render_template
-from communicator import communicator
-from devices import get_devices
-from eep import EEPRegistry
+from enocean_manager.communicator import communicator
+from enocean_manager.devices import get_devices
+from enocean_manager.eep import EEPRegistry
 
 app = Flask(__name__, template_folder="templates")
-
-# Démarre l’écoute série (thread interne)
-communicator.start()
+_registry = EEPRegistry()
 
 @app.route("/")
 def index():
-    # UI optionnelle (si templates/index.html existe)
-    devices = get_devices()
-    return render_template("index.html", devices=devices)
+    return render_template("index.html", devices=get_devices())
 
-@app.route("/etat", methods=["GET"])
+@app.route("/etat")
 def etat():
-    return jsonify({
-        "status": "Actif",
-        "port": communicator.port,
-        "sender_id": getattr(communicator, "sender_id", None),
-    })
+    return jsonify({"status": "Actif", "port": communicator.port})
 
 @app.route("/devices", methods=["GET"])
 def list_devices():
