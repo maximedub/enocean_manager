@@ -1,6 +1,6 @@
 name: "EnOcean Manager"
+version: "0.0.7c"
 slug: "enocean_manager"
-version: "0.0.7d"
 description: "Add-on Home Assistant pour gérer EnOcean à partir de profils EEP JSON."
 url: "https://github.com/maximedub/enocean_manager"
 arch:
@@ -9,24 +9,27 @@ arch:
   - armv7
   - armhf
   - i386
-startup: services
+
+# S6 v3 -> init doit être à false (le script run.sh démarre le service)
 init: false
-host_network: false
-uart: true          # pour mapper auto les ports série
-# apparmor: true    # (tu pourras ajouter un profil plus tard)
+startup: services
+
+# Ingress (pas d’ouverture de port externe nécessaire)
 ingress: true
-ingress_port: 8099  # si tu suis le CMD ci-dessus
+ingress_port: 8099
 panel_icon: mdi:radio-tower
+panel_title: "EnOcean"
+
+# Répertoires mappés (persistants)
 map:
-  - data:rw         # /data pour tes profiles JSON et devices.json
-  - config:rw
+  - data:rw
   - share:rw
-  - addons:rw
+
+# Options exposées à l’UI
 options:
   serial_port: "/dev/ttyUSB0"
   json_dir: "/data/profile_json"
+
 schema:
   serial_port: str
   json_dir: str
-# Laisse "image" commenté pour forcer le build local :
-# image: "maximedub/enocean_manager-{arch}"
