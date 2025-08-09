@@ -1,30 +1,27 @@
-# Dockerfile (multi-arch via BUILD_FROM, conforme add-ons)
+# Dockerfile (in your add-on folder)
 ARG BUILD_FROM
-FROM $BUILD_FROM
+FROM ${BUILD_FROM}
 
-# Paquets système (python, pip, git, build tools si besoin de wheels natifs)
+# System deps
 RUN apk add --no-cache \
-      python3 py3-pip git \
-      gcc musl-dev libffi-dev libxml2-dev libxslt-dev
+    python3 py3-pip \
+    git \
+    gcc musl-dev libffi-dev \
+    libxml2-dev libxslt-dev
 
-# Venv pour éviter PEP 668
+# Create & use venv (avoids PEP 668)
 RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
+ENV PATH="/opt/venv/bin:${PATH}"
 
-# Dépendances Python
+# Python deps (VCS install needs git)
 COPY requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir \
       --extra-index-url https://wheels.home-assistant.io/musllinux-index/ \
       -r /tmp/requirements.txt
 
-# Code de l’add-on
-# (Présume que tout le code est à la racine du contexte)
+# App code
+WORKDIR /opt/enocean_manager
 COPY . /opt/enocean_manager
-ENV PYTHONPATH="/opt/enocean_manager:${PYTHONPATH}"
 
-# Script d’entrée
-COPY run.sh /run.sh
-RUN chmod +x /run.sh
-
-# Home Assistant s’occupe du démarrage (s6-overlay)
+# s6-overlay calls /run.sh
 CMD [ "/run.sh" ]
