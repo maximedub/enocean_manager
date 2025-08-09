@@ -8,7 +8,7 @@ RUN apk add --no-cache \
 
 # Venv pour éviter PEP 668 et isoler pip
 RUN python3 -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"  # <-- pas de commentaire après
+ENV PATH="/opt/venv/bin:$PATH" 
 
 # Copie des deps puis install (utilise directement le pip du venv)
 COPY requirements.txt /tmp/requirements.txt
