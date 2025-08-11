@@ -1,0 +1,5 @@
+# Identifie ce dépôt comme un dépôt d'add-ons Home Assistant
+# Doc : https://developers.home-assistant.io/docs/add-ons/repository/
+name: "EnOcean Manager Add-ons"
+url: "https://github.com/maximedub/enocean_manager"   # ← mets l’URL réelle du repo
+maintainer: "Maxime DUBREUIL <maxime.dubreuil@yahoo.fr>" # ← ton contact (optionnel)
