@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <title>EnOcean YAML Manager</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <header><h1>EnOcean YAML Manager</h1></header>
+
+  <section class="panel">
+    <h2>Chemins de fichiers</h2>
+    <div id="paths">
+      <div><b>auto.yaml</b> (HA) : <span id="auto-path">/config/packages/enocean_auto.yaml</span></div>
+      <div><b>config.yaml</b> (groupements) : <span id="cfg-path">/config/packages/enocean_yaml_config.yaml</span></div>
+      <div class="actions">
+        <button id="import">Importer depuis les 2 YAML</button>
+        <button id="export">Exporter vers les 2 YAML</button>
+      </div>
+      <div id="op-result"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Ajouter / Modifier un appareil</h2>
+    <form id="device-form">
+      <label>ID (ex: 0595DD72) — peut être vide pour un light sans dev_id
+        <input name="id_hex" />
+      </label>
+
+      <label>Libellé
+        <input name="label" value="Appareil EnOcean" />
+      </label>
+
+      <label>Type HA
+        <select name="ha_type">
+          <option value="switch">switch</option>
+          <option value="light">light</option>
+          <option value="binary_sensor">binary_sensor</option>
+          <option value="sensor">sensor</option>
+        </select>
+      </label>
+
+      <details>
+        <summary>Options Switch (canaux + 1 émetteur/canal)</summary>
+        <div id="channels"></div>
+        <button type="button" id="add-channel">+ Ajouter un canal</button>
+      </details>
+
+      <details>
+        <summary>Options Light (sender_id requis côté HA)</summary>
+        <label>sender_id (ex: FFC6EA04)
+          <input name="light_sender.sender_id" />
+        </label>
+      </details>
+
+      <details>
+        <summary>Options Sensor</summary>
+        <label>device_class
+          <select name="sensor_options.device_class">
+            <option value="powersensor">powersensor</option>
+            <option value="temperature">temperature</option>
+            <option value="humidity">humidity</option>
+            <option value="windowhandle">windowhandle</option>
+          </select>
+        </label>
+        <div class="grid-2">
+          <label>min_temp <input name="sensor_options.min_temp" type="number" value="0"/></label>
+          <label>max_temp <input name="sensor_options.max_temp" type="number" value="40"/></label>
+          <label>range_from <input name="sensor_options.range_from" type="number" value="255"/></label>
+          <label>range_to <input name="sensor_options.range_to" type="number" value="0"/></label>
+        </div>
+      </details>
+
+      <button type="submit">Enregistrer</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Appareils</h2>
+    <div id="devices"></div>
+  </section>
+
+  <script src="./app.js"></script>
+</body>
+</html>
