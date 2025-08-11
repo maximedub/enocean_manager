@@ -1,0 +1,26 @@
+name: EnOcean YAML Manager
+slug: enocean_yaml_manager
+description: Gérer/éditer 2 fichiers YAML EnOcean (auto + config) depuis une UI simple.
+version: 0.2.0
+arch:
+  - aarch64
+  - amd64
+  - armv7
+startup: services
+init: false
+ports:
+  "9123/tcp": 9123
+map:
+  - config:rw         # Accès en écriture à /config
+options:
+  # Fichier utilisé par l’intégration core EnOcean (entities)
+  auto_output_path: /config/packages/enocean_auto.yaml
+  auto_backup_path: /config/packages/enocean_auto.backup.yaml
+  # Fichier d’organisation (groupements émetteurs/récepteurs)
+  config_output_path: /config/packages/enocean_yaml_config.yaml
+  config_backup_path: /config/packages/enocean_yaml_config.backup.yaml
+schema:
+  auto_output_path: str
+  auto_backup_path: str
+  config_output_path: str
+  config_backup_path: str
