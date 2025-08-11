@@ -1,0 +1,5 @@
+# Dépendances Python de l'add-on
+fastapi
+uvicorn[standard]
+pydantic>=2
+ruamel.yaml>=0.18
