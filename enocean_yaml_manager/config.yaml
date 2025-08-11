@@ -1,22 +1,26 @@
 name: EnOcean YAML Manager
 slug: enocean_yaml_manager
-description: Gérer/éditer 2 fichiers YAML EnOcean (auto + config) depuis une UI simple.
-version: 0.2.0
+description: |
+  Générez deux YAML EnOcean : un pour Home Assistant (auto)
+  et un pour vos groupements lisibles (config). UI web simple.
+version: 0.2.1
 arch:
   - aarch64
   - amd64
   - armv7
-startup: services
+startup: application
 init: false
+url: "https://github.com/maximedub/enocean_manager"
+webui: "http://[HOST]:[PORT:9123]/ui"
 ports:
   "9123/tcp": 9123
+ports_description:
+  "9123/tcp": "Interface Web EnOcean YAML Manager"
 map:
-  - config:rw         # Accès en écriture à /config
+  - config:rw
 options:
-  # Fichier utilisé par l’intégration core EnOcean (entities)
   auto_output_path: /config/packages/enocean_auto.yaml
   auto_backup_path: /config/packages/enocean_auto.backup.yaml
-  # Fichier d’organisation (groupements émetteurs/récepteurs)
   config_output_path: /config/packages/enocean_yaml_config.yaml
   config_backup_path: /config/packages/enocean_yaml_config.backup.yaml
 schema:
