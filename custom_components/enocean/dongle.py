@@ -5,19 +5,19 @@ dongle.py — Outils autour du communicateur série EnOcean + classe EnOceanDong
 
 Objectifs :
 - Exposer une classe EnOceanDongle (attendue par __init__.py / switch.py / light.py).
+- Signature compatible : EnOceanDongle(hass, device)
 - Appliquer le patch UTE le plus tôt possible pour éviter les crashs teach-in.
 - Fournir detect()/validate_path() pour le config_flow et helpers d'init/stop.
 
-Notes :
-- On commente chaque bloc pour clarifier le rôle de chaque fonction.
+Chaque fonction est commentée pour clarifier son rôle.
 """
 
 from __future__ import annotations
 
-import glob  # recherche des ports série candidats
-import logging  # logs HA
-import os  # validations de chemin
-from typing import List, Optional  # annotations
+import glob                     # recherche des ports série candidats
+import logging                  # logs HA
+import os                       # validations de chemin
+from typing import List
 
 from enocean.communicators import SerialCommunicator  # communicateur série EnOcean
 
@@ -27,13 +27,12 @@ from .patches import apply_enocean_workaround
 _LOGGER = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Patch UTE appliqué au plus tôt (à l'import du module)
+# Patch UTE appliqué au plus tôt (à l'import du module) pour intercepter
+# Packet.send_response() avant toute trame teach-in.
 # ---------------------------------------------------------------------------
 try:
-    # On active le wrapper sur Packet.send_response() avant toute réception
     apply_enocean_workaround(None)
 except Exception:
-    # On ne doit jamais planter à l'import
     _LOGGER.exception("Échec application patch UTE à l'import (ignoré).")
 
 
@@ -83,10 +82,19 @@ def validate_path(path: str) -> bool:
 class EnOceanDongle:
     """
     Représente le dongle EnOcean et encapsule le SerialCommunicator.
-    Fournit start()/stop(), l'accès au communicator et des utilitaires statiques.
+
+    Signature compatible avec l’appel de __init__.py :
+        EnOceanDongle(hass, device)
+
+    Fournit :
+        - start()/stop() : cycle de vie du communicateur
+        - communicator   : accès à l'instance SerialCommunicator
+        - detect()/validate_path() : helpers statiques
     """
 
-    def __init__(self, device: str) -> None:
+    def __init__(self, hass, device: str) -> None:
+        # Référence Home Assistant (utile si besoin d’accès au bus plus tard)
+        self.hass = hass
         # Chemin du port série (ex: /dev/serial/by-id/usb-...)
         self.device = device
         # Communicator python-enocean (non démarré à la construction)
@@ -136,16 +144,12 @@ class EnOceanDongle:
     # ---- utilitaires statiques compatibles avec d'anciens appels ----
     @staticmethod
     def detect() -> List[str]:
-        """
-        Proxy statique : permet d'appeler EnOceanDongle.detect() si attendu par le code.
-        """
+        """Proxy statique : permet d'appeler EnOceanDongle.detect() si attendu."""
         return detect()
 
     @staticmethod
     def validate_path(path: str) -> bool:
-        """
-        Proxy statique : permet d'appeler EnOceanDongle.validate_path(...) si attendu.
-        """
+        """Proxy statique : permet d'appeler EnOceanDongle.validate_path(...) si attendu."""
         return validate_path(path)
 
 
@@ -159,20 +163,18 @@ def init_communicator(device: str) -> SerialCommunicator:
     - start()
     - Tente de lire le Base ID
     """
-    dongle = EnOceanDongle(device)
+    # Pour compat : on ne requiert pas 'hass' ici
+    dongle = EnOceanDongle(hass=None, device=device)  # hass non utilisé par ces helpers
     dongle.start()
     return dongle.communicator
 
 
 def stop_communicator(comm: SerialCommunicator) -> None:
-    """
-    Arrête proprement un SerialCommunicator existant.
-    """
+    """Arrête proprement un SerialCommunicator existant."""
     try:
         comm.stop()
     except Exception:
         _LOGGER.exception("Arrêt communicateur échoué (ignoré).")
 
 
-# Pour expliciter les symboles exposés par ce module
 __all__ = ["EnOceanDongle", "detect", "validate_path", "init_communicator", "stop_communicator"]
