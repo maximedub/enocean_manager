@@ -7,10 +7,16 @@ const opResult = $("#op-result");
 const eHaType = $("#ha_type");
 const eEep = $("#eep");
 
+// Base Ingress : on calcule le "chemin racine" à partir de l'URL courante.
+// Ex: /api/hassio_ingress/<token>/ -> BASE="/api/hassio_ingress/<token>"
+const BASE = window.location.pathname.replace(/\/$/, "");
+const api = (path, opts={}) => fetch(`${BASE}${path}`, opts);
+
+// Affiche les chemins (indicatif)
 $("#auto-path").textContent = "/config/packages/enocean_auto.yaml";
 $("#cfg-path").textContent = "/config/packages/enocean_yaml_config.yaml";
 
-// --- Affichage conditionnel des panels selon ha_type ---
+// --- Affichage conditionnel des sections selon ha_type ---
 const panelSwitch = $("#panel-switch");
 const panelLight  = $("#panel-light");
 const panelSensor = $("#panel-sensor");
@@ -29,7 +35,7 @@ updateVisibility();
 
 // --- EEP : charger la liste et remplir le select ---
 async function loadEEPs() {
-  const res = await fetch("/api/eep");
+  const res = await api("/api/eep");
   const json = await res.json();
   eEep.innerHTML = `<option value="">(aucun)</option>`;
   (json.profiles || []).forEach(p => {
@@ -43,7 +49,7 @@ async function loadEEPs() {
 }
 loadEEPs();
 
-// --- Utilitaires ---
+// --- Éditeur de canaux ---
 function channelRow(idx) {
   // Ligne d’édition d’un canal + émetteur
   const row = document.createElement("div");
@@ -71,6 +77,30 @@ $("#add-channel").onclick = () => {
   channelsDiv.appendChild(channelRow(idx));
 };
 
+// --- Génération de canaux depuis l'EEP sélectionné ---
+$("#gen-channels").onclick = async () => {
+  const eep = eEep.value;
+  if (!eep) {
+    alert("Sélectionnez un EEP d'abord.");
+    return;
+  }
+  const r = await api(`/api/suggest/channels?eep=${encodeURIComponent(eep)}`);
+  const json = await r.json();
+  const chans = json.channels || [];
+  if (!chans.length) {
+    alert("Aucun canal suggéré pour cet EEP.");
+    return;
+  }
+  channelsDiv.innerHTML = "";
+  chans.forEach((c, i) => {
+    const row = channelRow(i);
+    row.querySelector(`[name="channels.${i}.channel"]`).value = c;
+    row.querySelector(`[name="channels.${i}.label"]`).value = `Canal ${c}`;
+    channelsDiv.appendChild(row);
+  });
+};
+
+// --- Form helpers ---
 function formToObj(formEl) {
   // Transforme le formulaire en un objet Device (cf. models.py)
   const data = new FormData(formEl);
@@ -109,32 +139,9 @@ function formToObj(formEl) {
   return obj;
 }
 
-// --- Génération de canaux depuis EEP ---
-$("#gen-channels").onclick = async () => {
-  const eep = eEep.value;
-  if (!eep) {
-    alert("Sélectionnez un EEP d'abord.");
-    return;
-  }
-  const r = await fetch(`/api/suggest/channels?eep=${encodeURIComponent(eep)}`);
-  const json = await r.json();
-  const chans = json.channels || [];
-  if (!chans.length) {
-    alert("Aucun canal suggéré pour cet EEP.");
-    return;
-  }
-  channelsDiv.innerHTML = "";
-  chans.forEach((c, i) => {
-    const row = channelRow(i);
-    row.querySelector(`[name="channels.${i}.channel"]`).value = c;
-    row.querySelector(`[name="channels.${i}.label"]`).value = `Canal ${c}`;
-    channelsDiv.appendChild(row);
-  });
-};
-
 // --- CRUD & Import/Export ---
 async function refresh() {
-  const res = await fetch("/api/devices");
+  const res = await api("/api/devices");
   const json = await res.json();
   const items = Object.entries(json.devices || {});
   devicesDiv.innerHTML = "";
@@ -157,12 +164,12 @@ async function refresh() {
     `;
     d.querySelector(".del").onclick = async (e) => {
       const id = e.target.dataset.id;
-      await fetch(`/api/devices/${encodeURIComponent(id)}`, { method: "DELETE" });
+      await api(`/api/devices/${encodeURIComponent(id)}`, { method: "DELETE" });
       refresh();
     };
     d.querySelector(".edit").onclick = async (e) => {
       const id = e.target.dataset.id;
-      const r = await fetch(`/api/devices/${encodeURIComponent(id)}`);
+      const r = await api(`/api/devices/${encodeURIComponent(id)}`);
       if (!r.ok) return;
       const dev = await r.json();
       form.reset();
@@ -202,7 +209,7 @@ async function refresh() {
 form.onsubmit = async (e) => {
   e.preventDefault();
   const payload = formToObj(form);
-  const res = await fetch("/api/devices", {
+  const res = await api("/api/devices", {
     method: "POST",
     headers: {"content-type":"application/json"},
     body: JSON.stringify(payload)
@@ -217,7 +224,7 @@ form.onsubmit = async (e) => {
 
 $("#export").onclick = async () => {
   opResult.textContent = "Export en cours...";
-  const res = await fetch("/api/export", { method:"POST" });
+  const res = await api("/api/export", { method:"POST" });
   const json = await res.json();
   if (json.ok) {
     opResult.textContent = `Écrit: ${json.auto_output} et ${json.config_output}`;
@@ -228,7 +235,7 @@ $("#export").onclick = async () => {
 
 $("#import").onclick = async () => {
   opResult.textContent = "Import en cours...";
-  const res = await fetch("/api/import", { method:"POST" });
+  const res = await api("/api/import", { method:"POST" });
   const json = await res.json();
   if (json.ok) {
     await refresh();
