@@ -1,10 +1,9 @@
 // UI : CRUD + import/export + EEP + affichage conditionnel par type
 // -----------------------------------------------------------------
 // - Construction d'URL robuste compatible Ingress : new URL()
-// - Anti double slash // dans les chemins
+// - Défaut automatique de emitter.kind = "binary_sensor" si emitter.id saisi
 // - Affichage conditionnel des options par type (switch/light/sensor)
 
-// Sélecteurs utiles
 const $ = (sel) => document.querySelector(sel);
 const devicesDiv = $("#devices");
 const channelsDiv = $("#channels");
@@ -14,31 +13,21 @@ const eHaType = $("#ha_type");
 const eEep = $("#eep");
 
 // -------- Base URL compatible Ingress --------
-// Exemple Ingress: https://ha.local/api/hassio_ingress/<token>/
-// On obtient une base *normalisée* finissant par "/".
-// new URL('./', ...) est le moyen le plus sûr pour gérer les chemins.
 const BASE_URL = new URL("./", window.location.href);
-
-// Utilitaire: fabrique une URL absolue à partir d'un chemin relatif à la base.
-// - on enlève les "/" de tête éventuels pour ne pas casser l'Ingress
-// - on laisse new URL() résoudre proprement (et éviter les //)
 const buildApiUrl = (path) => {
-  const safe = String(path || "").replace(/^\/+/, ""); // retire les "/" de tête
-  return new URL(safe, BASE_URL);                       // ex: "api/paths" -> <base>/api/paths
+  const safe = String(path || "").replace(/^\/+/, "");
+  return new URL(safe, BASE_URL);
 };
-
-// Helper fetch API
 const api = (path, opts = {}) => fetch(buildApiUrl(path), opts);
 
-// Affiche les chemins (obtenus de l'API)
+// Affiche les chemins réels
 async function showPaths() {
   try {
-    const res = await api("api/paths");                 // pas de "/" de tête
+    const res = await api("api/paths");
     const j = await res.json();
     $("#auto-path").textContent = j.auto_output_path || "(?)";
     $("#cfg-path").textContent = j.config_output_path || "(?)";
   } catch (_e) {
-    // Valeurs par défaut (au cas où l'API ne répond pas)
     $("#auto-path").textContent = "/config/packages/enocean_auto.yaml";
     $("#cfg-path").textContent = "/config/enocean_yaml_config.yaml";
   }
@@ -62,7 +51,7 @@ function updateVisibility() {
 eHaType.addEventListener("change", updateVisibility);
 updateVisibility();
 
-// --- Charger la liste des EEP ---
+// --- EEP : charger la liste ---
 async function loadEEPs() {
   const res = await api("api/eep");
   const json = await res.json();
@@ -80,7 +69,6 @@ loadEEPs();
 
 // --- Éditeur de canaux ---
 function channelRow(idx) {
-  // Ligne d’édition d’un canal + émetteur
   const row = document.createElement("div");
   row.className = "channel-row";
   row.innerHTML = `
@@ -89,7 +77,7 @@ function channelRow(idx) {
     <label>Émetteur ID <input name="channels.${idx}.emitter.id" placeholder="(optionnel)"/></label>
     <label>Émetteur type
       <select name="channels.${idx}.emitter.kind">
-        <option value="">(aucun)</option>
+        <option value="">(non défini → binary_sensor)</option>
         <option value="binary_sensor">binary_sensor</option>
         <option value="switch">switch</option>
       </select>
@@ -100,26 +88,19 @@ function channelRow(idx) {
   row.querySelector(".rm").onclick = () => row.remove();
   return row;
 }
-
 $("#add-channel").onclick = () => {
   const idx = channelsDiv.childElementCount;
   channelsDiv.appendChild(channelRow(idx));
 };
 
-// --- Générer les canaux depuis l’EEP sélectionné ---
+// --- Génération de canaux depuis l'EEP ---
 $("#gen-channels").onclick = async () => {
   const eep = eEep.value;
-  if (!eep) {
-    alert("Sélectionnez un EEP d'abord.");
-    return;
-  }
+  if (!eep) return alert("Sélectionnez un EEP d'abord.");
   const r = await api(`api/suggest/channels?eep=${encodeURIComponent(eep)}`);
   const json = await r.json();
   const chans = json.channels || [];
-  if (!chans.length) {
-    alert("Aucun canal suggéré pour cet EEP.");
-    return;
-  }
+  if (!chans.length) return alert("Aucun canal suggéré pour cet EEP.");
   channelsDiv.innerHTML = "";
   chans.forEach((c, i) => {
     const row = channelRow(i);
@@ -129,11 +110,11 @@ $("#gen-channels").onclick = async () => {
   });
 };
 
-// --- Form helpers ---
+// --- Transforme le formulaire en payload Device ---
 function formToObj(formEl) {
-  // Transforme le formulaire en un objet Device (cf. models.py)
   const data = new FormData(formEl);
   const obj = { channels: [], sensor_options: {}, light_sender: {} };
+
   for (const [k,v] of data.entries()) {
     if (k.startsWith("channels.")) {
       const [, idx, ...rest] = k.split(".");
@@ -146,7 +127,8 @@ function formToObj(formEl) {
         obj.channels[+idx].emitter.id = v;
       } else if (key === "emitter.kind") {
         obj.channels[+idx].emitter = obj.channels[+idx].emitter || {};
-        obj.channels[+idx].emitter.kind = v || undefined;
+        // Défaut automatique si non choisi : "binary_sensor"
+        obj.channels[+idx].emitter.kind = v || "binary_sensor";
       } else if (key === "emitter.label") {
         obj.channels[+idx].emitter = obj.channels[+idx].emitter || {};
         obj.channels[+idx].emitter.label = v || undefined;
@@ -160,6 +142,12 @@ function formToObj(formEl) {
       obj[k] = v;
     }
   }
+
+  // Nettoyage : si un emitter a un id sans kind (cas bord), définir kind par défaut
+  (obj.channels || []).forEach(c => {
+    if (c?.emitter?.id && !c.emitter.kind) c.emitter.kind = "binary_sensor";
+  });
+
   if (!obj.sensor_options.device_class) delete obj.sensor_options;
   if (!obj.light_sender.sender_id) delete obj.light_sender;
   obj.channels = (obj.channels || []).filter(Boolean);
