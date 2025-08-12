@@ -34,7 +34,7 @@
       </label>
 
       <label>Type HA
-        <select name="ha_type">
+        <select name="ha_type" id="ha_type">
           <option value="switch">switch</option>
           <option value="light">light</option>
           <option value="binary_sensor">binary_sensor</option>
@@ -42,20 +42,27 @@
         </select>
       </label>
 
-      <details>
-        <summary>Options Switch (canaux + 1 émetteur/canal)</summary>
+      <label>EEP (optionnel, pour aide/suggestions)
+        <select name="eep" id="eep"></select>
+      </label>
+
+      <details id="panel-switch">
+        <summary>Options Switch</summary>
+        <div class="row">
+          <button type="button" id="gen-channels">⤵ Générer canaux depuis EEP</button>
+        </div>
         <div id="channels"></div>
         <button type="button" id="add-channel">+ Ajouter un canal</button>
       </details>
 
-      <details>
-        <summary>Options Light (sender_id requis côté HA)</summary>
+      <details id="panel-light">
+        <summary>Options Light</summary>
         <label>sender_id (ex: FFC6EA04)
           <input name="light_sender.sender_id" />
         </label>
       </details>
 
-      <details>
+      <details id="panel-sensor">
         <summary>Options Sensor</summary>
         <label>device_class
           <select name="sensor_options.device_class">
