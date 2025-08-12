@@ -2,8 +2,8 @@
 """
 Dongle EnOcean patché :
 - Démarre le SerialCommunicator
-- Applique nos rustines (lecture Base ID + garde-fou UTE)
-- Redispatche les paquets radio aux plateformes
+- Applique nos rustines (Base ID + UTE guard)
+- Redispatche les paquets radio aux entités
 """
 
 import glob
@@ -22,10 +22,10 @@ from .patches import apply_enocean_workaround
 _LOGGER = logging.getLogger(__name__)
 
 class EnOceanDongle:
-    """Représentation du dongle EnOcean (presque identique au core)."""
+    """Représentation du dongle EnOcean."""
 
     def __init__(self, hass, serial_path):
-        """Construit le communicator série et garde le chemin pour l’UI."""
+        """Crée le communicator série et garde le chemin."""
         self._communicator = SerialCommunicator(
             port=serial_path,
             callback=self.callback,
@@ -36,16 +36,11 @@ class EnOceanDongle:
         self.dispatcher_disconnect_handle = None
 
     async def async_setup(self):
-        """Démarre le thread série + applique les rustines, et connecte le dispatcher."""
-        # Démarre la communication série
+        """Démarre le thread série, applique rustines, connecte le dispatcher."""
         self._communicator.start()
-
-        # Lit le BaseID + sécurise UTE sans bloquer l’event loop
         await self.hass.async_add_executor_job(
             apply_enocean_workaround, self._communicator
         )
-
-        # Abonnement aux commandes sortantes
         self.dispatcher_disconnect_handle = async_dispatcher_connect(
             self.hass, SIGNAL_SEND_MESSAGE, self._send_message_callback
         )
@@ -57,7 +52,7 @@ class EnOceanDongle:
             self.dispatcher_disconnect_handle = None
 
     def _send_message_callback(self, command):
-        """Envoie un Packet via le communicator (utilisé par les entités)."""
+        """Envoie un Packet via le communicator."""
         self._communicator.send(command)
 
     def callback(self, packet):
@@ -67,7 +62,7 @@ class EnOceanDongle:
             dispatcher_send(self.hass, SIGNAL_RECEIVE_MESSAGE, packet)
 
 def detect():
-    """Détecte des chemins de clé EnOcean courants (optionnel)."""
+    """Détecte des chemins de clé courants (optionnel)."""
     globs_to_test = ["/dev/tty*FTOA2PV*", "/dev/serial/by-id/*EnOcean*"]
     found_paths = []
     for current_glob in globs_to_test:
@@ -75,7 +70,7 @@ def detect():
     return found_paths
 
 def validate_path(path: str):
-    """Retourne True si le port série est valide et accessible."""
+    """True si le port série est valide et accessible."""
     try:
         SerialCommunicator(port=path)
     except serial.SerialException as exception:
