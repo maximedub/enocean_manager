@@ -1,139 +1,112 @@
-# -*- coding: utf-8 -*-
-"""
-association.py — Gestion de l'association (teach-in) côté custom component.
-
-- Service 'association_listen' : met le dongle en écoute et détecte le prochain paquet
-  intéressant (UTE / 4BS / F6). En cas de UTE, option pour répondre automatiquement.
-  Publie un évènement 'enocean_association_found' avec les infos utiles.
-
-- Service 'association_d2_teach' : envoie D2-01 ON/OFF sur un canal pour permettre
-  l'apprentissage d'un actionneur D2-01-xx pendant sa fenêtre LRN.
-
-Cette 1ère version ne tente pas encore de "reconnaître" l'EEP dans nos JSON ;
-on y viendra en étape 2 en important un petit index EEP (RORG-FUNC-TYPE → libellé).
-"""
-
+# custom_components/enocean/association.py
 from __future__ import annotations
-import time
-import threading
+
 import logging
-from dataclasses import dataclass
-from typing import Callable, Optional, List
+import time
+from typing import Optional, Callable
 
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.dispatcher import dispatcher_send
-
-from enocean.protocol.packet import Packet, RadioPacket  # type: ignore
-
-from .const import SIGNAL_SEND_MESSAGE
+from enocean.protocol.packet import RadioPacket, Packet
+from enocean.protocol.constants import PACKET
+from enocean.communicators import SerialCommunicator
 
 _LOGGER = logging.getLogger(__name__)
 
-# --- Quelques constantes RORG utiles ---
-RORG_UTE = 0xD4  # Universal Teach-In
-RORG_4BS = 0xA5  # 4BS (peut contenir teach-in selon EEP)
-RORG_RPS = 0xF6  # Rocker (pas de teach-in 'standard', mais on capte l'ID)
+EVENT_ENOCEAN_ID_DISCOVERED = "enocean_association_found"
 
-@dataclass
-class ListenResult:
-    """Conteneur pour le résultat de l'écoute."""
-    sender: List[int]     # ID émetteur (4 octets)
-    rorg: int             # RORG détecté
-    raw: List[int]        # Données brutes (data + optional utiles)
-    description: str      # Texte court (explicatif)
 
 class AssociationManager:
-    """Gère une session d'écoute teach-in et l'envoi de paquets D2."""
+    """Gère l'écoute teach-in et l'envoi d'un D2 simple."""
 
-    def __init__(self, hass: HomeAssistant, communicator) -> None:
-        """Garde les poignées vers hass et le communicator py-enocean."""
+    def __init__(self, hass, communicator: SerialCommunicator) -> None:
         self.hass = hass
-        self._communicator = communicator
-        self._lock = threading.Lock()
+        self._comm = communicator
         self._listening = False
 
-    # --------------------- ÉCOUTE / DÉTECTION ---------------------
+    # ---------- ÉCOUTE TEACH-IN ----------
+    def listen(self, timeout: int = 15, respond_ute: bool = True) -> None:
+        """Écoute le prochain teach-in, publie un évènement HA, et tente une réponse UTE si possible."""
+        if self._listening:
+            _LOGGER.debug("Déjà en écoute, on ignore la nouvelle demande.")
+            return
 
-    def _is_teach_in_candidate(self, pkt: RadioPacket) -> bool:
-        """Heuristique simple : UTE (D4) toujours ; 4BS (A5) et F6 (F6) acceptés aussi."""
-        try:
-            rorg = pkt.data[0]
-            return rorg in (RORG_UTE, RORG_4BS, RORG_RPS)
-        except Exception:
-            return False
+        self._listening = True
+        deadline = time.time() + max(1, int(timeout))
 
-    def _packet_to_result(self, pkt: RadioPacket) -> ListenResult:
-        """Transforme un RadioPacket en résultat exploitable pour l’UI."""
-        sender = list(pkt.sender) if isinstance(pkt.sender, (bytes, bytearray)) else pkt.sender
-        rorg = pkt.data[0]
-        # On expose 'data' et 'optional' concaténés pour debug/interop
-        raw = list(pkt.data) + list(pkt.optional or [])
-        if rorg == RORG_UTE:
-            desc = "Teach-in UTE détecté (réponse possible)"
-        elif rorg == RORG_4BS:
-            desc = "Télégramme 4BS détecté (peut contenir teach-in selon EEP)"
-        elif rorg == RORG_RPS:
-            desc = "Télégramme RPS (rocker) détecté"
-        else:
-            desc = "Télégramme radio détecté"
-        return ListenResult(sender=sender, rorg=rorg, raw=raw, description=desc)
+        def on_packet(pkt: Packet) -> None:
+            if not self._listening:
+                return
 
-    def listen_once(self, timeout_s: int = 15, respond_ute: bool = True) -> Optional[ListenResult]:
-        """Bloque jusqu'au 1er paquet 'candidat' ou timeout, puis retourne le résultat.
+            if isinstance(pkt, RadioPacket) and pkt.rorg is not None:
+                try:
+                    sender = list(pkt.sender) if hasattr(pkt, "sender") else None
+                    raw = list(pkt.data) if hasattr(pkt, "data") else None
+                except Exception:
+                    sender, raw = None, None
 
-        NOTE: Appelé dans un thread d'executor (pas dans l'event loop).
-        """
-        with self._lock:
-            if self._listening:
-                _LOGGER.warning("Session d'écoute déjà en cours.")
-                return None
-            self._listening = True
-        try:
-            deadline = time.time() + max(1, timeout_s)
-            while time.time() < deadline:
-                pkt = self._communicator.receive(blocking=True, timeout=0.2)  # type: ignore[attr-defined]
-                if not pkt or not isinstance(pkt, RadioPacket):
-                    continue
-                if not self._is_teach_in_candidate(pkt):
-                    continue
+                # Évènement côté HA (dev tools -> Events)
+                self.hass.bus.async_fire(
+                    EVENT_ENOCEAN_ID_DISCOVERED,
+                    {"sender": sender, "rorg": int(pkt.rorg), "raw": raw},
+                )
 
-                res = self._packet_to_result(pkt)
-                _LOGGER.info("Association: paquet détecté rorg=0x%02X sender=%s", res.rorg, res.sender)
+                _LOGGER.info("Teach-in détecté: sender=%s rorg=0x%02X", sender, int(pkt.rorg))
 
-                # Réponse UTE facultative (accusé teach-in)
-                if respond_ute and res.rorg == RORG_UTE:
+                # Tentative de réponse UTE si supporté par la lib
+                if respond_ute and hasattr(pkt, "send_response"):
                     try:
-                        _LOGGER.debug("Réponse UTE -> send_response()")
-                        pkt.send_response()  # notre custom a un garde-fou si base_id None
-                    except Exception as e:
-                        _LOGGER.warning("Échec send_response() UTE: %s", e)
+                        pkt.send_response()  # certaines versions de py-enocean proposent cette méthode
+                        _LOGGER.info("Réponse UTE envoyée via pkt.send_response()")
+                    except Exception as exc:
+                        _LOGGER.warning("Échec envoi réponse UTE: %s", exc)
+                else:
+                    if respond_ute:
+                        _LOGGER.debug("send_response() non disponible dans cette version de py-enocean; on continue sans répondre.")
 
-                return res
-            _LOGGER.info("Association: timeout (%ss) sans paquet éligible.", timeout_s)
-            return None
-        finally:
-            with self._lock:
-                self._listening = False
+                # On s’arrête après le premier teach-in
+                self.stop_listen()
 
-    # --------------------- ENVOI D2-01 (TEACH-IN ACTUATEUR) ---------------------
+        self._comm.receive_callback = on_packet
+        _LOGGER.info("Écoute teach-in démarrée pour %ss (respond_ute=%s)", timeout, respond_ute)
 
-    def send_d2_01(self, target_id: List[int], channel: int, on: bool, repeats: int = 2) -> None:
-        """Construit et envoie un D2-01 ON/OFF vers un récepteur (pendant LRN).
+        # Boucle d'attente simple (bloquante côté thread communicateur)
+        while self._listening and time.time() < deadline:
+            time.sleep(0.05)
 
-        - ON pendant LRN = la plupart des D2-01 apprennent l’émetteur (sender HA)
-        - OFF idem, selon fabricants ; ON est plus 'universel'
+        if self._listening:
+            _LOGGER.info("Fin de fenêtre d’écoute (%ss), aucun teach-in reçu.", timeout)
+            self.stop_listen()
+
+    def stop_listen(self) -> None:
+        """Arrête l’écoute teach-in."""
+        if not self._listening:
+            return
+        self._listening = False
+        # Libère le callback
+        self._comm.receive_callback = None
+        _LOGGER.debug("Écoute teach-in arrêtée.")
+
+    # ---------- ENVOI D2-01 (ON/OFF) ----------
+    def d2_teach_in(self, receiver_id: list[int], channel: int = 0, action: str = "on", repeats: int = 2) -> None:
         """
-        # data D2-01 : D2 01 [chan] [valeur] ...
-        value = 0x64 if on else 0x00  # 100% ou 0%
-        data = [0xD2, 0x01, channel & 0xFF, value, 0x00, 0x00, 0x00, 0x00, 0x00]
+        Envoie une trame D2-01 (ON/OFF) à un récepteur.
+        receiver_id: [0xAA,0xBB,0xCC,0xDD]
+        channel: 0..15
+        action: "on" | "off"
+        """
+        if len(receiver_id) != 4:
+            raise ValueError("receiver_id doit contenir 4 octets")
 
-        # optional = 'destination' (id récepteur) + flags
-        optional = [0x03] + list(target_id) + [0xFF, 0x00]
+        repeats = max(1, min(5, int(repeats)))
+        ch = max(0, min(15, int(channel)))
+        state = 0x01 if str(action).lower() == "on" else 0x00
 
-        # Envoie N fois (utile pendant LRN)
-        for i in range(max(1, repeats)):
-            pkt = Packet(0x01, data=data, optional=optional)  # type: ignore
-            dispatcher_send(self.hass, SIGNAL_SEND_MESSAGE, pkt)
-            _LOGGER.debug("D2-01 %s envoyé (%d/%d) -> %s ch=%d",
-                          "ON" if on else "OFF", i + 1, repeats, target_id, channel)
-            time.sleep(0.15)
+        # D2-01-12 : CMD = 0x01 (switching) / 0x02 (dimming). Ici, simple ON/OFF switching.
+        # Données minimalistes: [CMD, output_value, reserved, ch]
+        data = bytearray([0xD2, 0x01, 0x12, 0x00, state, 0x00, ch & 0x0F])
+        optional = bytearray(receiver_id)  # destination
+
+        pkt = Packet(PACKET.RADIO, data=data, optional=optional)
+        for i in range(repeats):
+            self._comm.send(pkt)
+            _LOGGER.debug("D2 teach-in %s envoyé (%d/%d) vers %s (ch=%d)", action, i + 1, repeats, receiver_id, ch)
+            time.sleep(0.05)
