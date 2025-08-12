@@ -1,6 +1,3 @@
-# Déclare les schémas des services du custom component 'enocean'.
-# Ces descriptions apparaîtront dans l’UI ("Outils de développement" > "Services").
-
 association_listen:
   name: Écoute association (Teach-in)
   description: >
