@@ -3,37 +3,34 @@ slug: enocean_yaml_manager
 description: |
   Générez deux YAML EnOcean : un pour Home Assistant (auto)
   et un pour vos groupements lisibles (config). UI web simple.
-version: 0.3.2
+version: 0.3.3
 arch:
   - aarch64
   - amd64
   - armv7
 
-# L’UI s’ouvre dans HA via Ingress (pas besoin d’exposer un port)
-ingress: true                      # active Ingress
-ingress_port: 9123                 # port *interne* écouté par l'app (uvicorn)
-panel_title: "EnOcean YAML"        # titre dans le menu HA
-panel_icon: "mdi:flash"            # icône (Material Design Icons)
-# ingress_entry: "/"               # (optionnel) page d’entrée
+# Ouverture dans HA (Ingress)
+ingress: true
+ingress_port: 9123
+panel_title: "EnOcean YAML"
+panel_icon: "mdi:flash"
 
 startup: application
 init: false
 url: "https://github.com/maximedub/enocean_manager"
 
-# PLUS BESOIN de webui/ports avec Ingress ; si tu veux aussi l’accès direct, tu peux
-# réactiver :
-# webui: "http://[HOST]:[PORT:9123]/"
-# ports:
-#   "9123/tcp": 9123
-
 map:
   - config:rw
 
+# ⚠️ Nouveaux chemins :
+# - auto.yaml reste dans /config/packages/ (chargé par HA)
+# - config.yaml sort de /packages/ pour éviter les erreurs de "domain inconnue"
+# - backups en dehors de /packages/ pour ne pas être considérés comme des packages
 options:
   auto_output_path: /config/packages/enocean_auto.yaml
-  auto_backup_path: /config/packages/enocean_auto.backup.yaml
-  config_output_path: /config/packages/enocean_yaml_config.yaml
-  config_backup_path: /config/packages/enocean_yaml_config.backup.yaml
+  auto_backup_path: /config/enocean_manager/backups/enocean_auto.yaml.bak
+  config_output_path: /config/enocean_yaml_config.yaml
+  config_backup_path: /config/enocean_manager/backups/enocean_yaml_config.yaml.bak
 
 schema:
   auto_output_path: str
