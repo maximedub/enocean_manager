@@ -1,15 +1,24 @@
-# Génération & lecture des 2 YAML :
-#  - AUTO (consommé par HA) : binary_sensor / sensor / light / switch
-#  - CONFIG (groupements lisibles) : mapping RX↔TX / canaux / EEP
-import os
-from typing import Dict, Any, List, Tuple
-from ruamel.yaml import YAML
-from .models import Registry, Device, ChannelConfig, ChannelEmitter
-from .utils import (
-    hex_str_to_bytes_list,
-    bytes_list_to_yaml_list,
-    bytes_list_to_hex_str,
-)
+# -*- coding: utf-8 -*-
+"""Utilitaires d'E/S YAML pour EnOcean YAML Manager."""
+
+# --- Imports standard ---
+from __future__ import annotations
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
+# --- Imports projet ---
+# Compatibilité : certains commits ont "Channel" au lieu de "ChannelConfig"
+from .models import Registry, Device, ChannelEmitter  # classes existantes
+try:
+    # Préférence si présent
+    from .models import ChannelConfig  # type: ignore
+except Exception:
+    # Fallback sinon (maintient l'API attendue par le reste du module)
+    from .models import Channel as ChannelConfig  # type: ignore
+
+# NOTE : laissez le reste de vos imports existants en dessous si vous en avez
+# (ex: import yaml, etc.). Ne dupliquez pas ces imports si déjà présents.
+
 
 yaml = YAML()
 yaml.default_flow_style = False
