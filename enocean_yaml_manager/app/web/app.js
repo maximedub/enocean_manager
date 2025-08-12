@@ -1,4 +1,10 @@
 // UI : CRUD + import/export + EEP + affichage conditionnel par type
+// -----------------------------------------------------------------
+// - Construction d'URL robuste compatible Ingress : new URL()
+// - Anti double slash // dans les chemins
+// - Affichage conditionnel des options par type (switch/light/sensor)
+
+// Sélecteurs utiles
 const $ = (sel) => document.querySelector(sel);
 const devicesDiv = $("#devices");
 const channelsDiv = $("#channels");
@@ -7,20 +13,34 @@ const opResult = $("#op-result");
 const eHaType = $("#ha_type");
 const eEep = $("#eep");
 
-// Base Ingress : API relative au chemin courant
-const BASE = window.location.pathname.replace(/\/$/, "");
-const api = (path, opts={}) => fetch(`${BASE}${path}`, opts);
+// -------- Base URL compatible Ingress --------
+// Exemple Ingress: https://ha.local/api/hassio_ingress/<token>/
+// On obtient une base *normalisée* finissant par "/".
+// new URL('./', ...) est le moyen le plus sûr pour gérer les chemins.
+const BASE_URL = new URL("./", window.location.href);
 
-// Récupère et affiche les chemins effectifs
+// Utilitaire: fabrique une URL absolue à partir d'un chemin relatif à la base.
+// - on enlève les "/" de tête éventuels pour ne pas casser l'Ingress
+// - on laisse new URL() résoudre proprement (et éviter les //)
+const buildApiUrl = (path) => {
+  const safe = String(path || "").replace(/^\/+/, ""); // retire les "/" de tête
+  return new URL(safe, BASE_URL);                       // ex: "api/paths" -> <base>/api/paths
+};
+
+// Helper fetch API
+const api = (path, opts = {}) => fetch(buildApiUrl(path), opts);
+
+// Affiche les chemins (obtenus de l'API)
 async function showPaths() {
   try {
-    const res = await api("/api/paths");
+    const res = await api("api/paths");                 // pas de "/" de tête
     const j = await res.json();
     $("#auto-path").textContent = j.auto_output_path || "(?)";
-    $("#cfg-path").textContent  = j.config_output_path || "(?)";
-  } catch (e) {
+    $("#cfg-path").textContent = j.config_output_path || "(?)";
+  } catch (_e) {
+    // Valeurs par défaut (au cas où l'API ne répond pas)
     $("#auto-path").textContent = "/config/packages/enocean_auto.yaml";
-    $("#cfg-path").textContent  = "/config/enocean_yaml_config.yaml";
+    $("#cfg-path").textContent = "/config/enocean_yaml_config.yaml";
   }
 }
 showPaths();
@@ -29,6 +49,7 @@ showPaths();
 const panelSwitch = $("#panel-switch");
 const panelLight  = $("#panel-light");
 const panelSensor = $("#panel-sensor");
+
 function updateVisibility() {
   const t = eHaType.value;
   panelSwitch.open = t === "switch";
@@ -41,9 +62,9 @@ function updateVisibility() {
 eHaType.addEventListener("change", updateVisibility);
 updateVisibility();
 
-// --- EEP : charger la liste et remplir le select ---
+// --- Charger la liste des EEP ---
 async function loadEEPs() {
-  const res = await api("/api/eep");
+  const res = await api("api/eep");
   const json = await res.json();
   eEep.innerHTML = `<option value="">(aucun)</option>`;
   (json.profiles || []).forEach(p => {
@@ -59,6 +80,7 @@ loadEEPs();
 
 // --- Éditeur de canaux ---
 function channelRow(idx) {
+  // Ligne d’édition d’un canal + émetteur
   const row = document.createElement("div");
   row.className = "channel-row";
   row.innerHTML = `
@@ -78,19 +100,26 @@ function channelRow(idx) {
   row.querySelector(".rm").onclick = () => row.remove();
   return row;
 }
+
 $("#add-channel").onclick = () => {
   const idx = channelsDiv.childElementCount;
   channelsDiv.appendChild(channelRow(idx));
 };
 
-// Génération de canaux depuis l'EEP
+// --- Générer les canaux depuis l’EEP sélectionné ---
 $("#gen-channels").onclick = async () => {
   const eep = eEep.value;
-  if (!eep) return alert("Sélectionnez un EEP d'abord.");
-  const r = await api(`/api/suggest/channels?eep=${encodeURIComponent(eep)}`);
+  if (!eep) {
+    alert("Sélectionnez un EEP d'abord.");
+    return;
+  }
+  const r = await api(`api/suggest/channels?eep=${encodeURIComponent(eep)}`);
   const json = await r.json();
   const chans = json.channels || [];
-  if (!chans.length) return alert("Aucun canal suggéré pour cet EEP.");
+  if (!chans.length) {
+    alert("Aucun canal suggéré pour cet EEP.");
+    return;
+  }
   channelsDiv.innerHTML = "";
   chans.forEach((c, i) => {
     const row = channelRow(i);
@@ -100,8 +129,9 @@ $("#gen-channels").onclick = async () => {
   });
 };
 
-// Form helpers
+// --- Form helpers ---
 function formToObj(formEl) {
+  // Transforme le formulaire en un objet Device (cf. models.py)
   const data = new FormData(formEl);
   const obj = { channels: [], sensor_options: {}, light_sender: {} };
   for (const [k,v] of data.entries()) {
@@ -138,9 +168,9 @@ function formToObj(formEl) {
   return obj;
 }
 
-// CRUD & Import/Export
+// --- CRUD & Import/Export ---
 async function refresh() {
-  const res = await api("/api/devices");
+  const res = await api("api/devices");
   const json = await res.json();
   const items = Object.entries(json.devices || {});
   devicesDiv.innerHTML = "";
@@ -163,20 +193,20 @@ async function refresh() {
     `;
     d.querySelector(".del").onclick = async (e) => {
       const id = e.target.dataset.id;
-      await api(`/api/devices/${encodeURIComponent(id)}`, { method: "DELETE" });
+      await api(`api/devices/${encodeURIComponent(id)}`, { method: "DELETE" });
       refresh();
     };
     d.querySelector(".edit").onclick = async (e) => {
       const id = e.target.dataset.id;
-      const r = await api(`/api/devices/${encodeURIComponent(id)}`);
+      const r = await api(`api/devices/${encodeURIComponent(id)}`);
       if (!r.ok) return;
       const dev = await r.json();
       form.reset();
       form.id_hex.value = dev.id_hex || "";
       form.label.value = dev.label || "";
-      $("#ha_type").value = dev.ha_type || "switch";
+      eHaType.value = dev.ha_type || "switch";
       updateVisibility();
-      $("#eep").value = dev.eep || "";
+      eEep.value = dev.eep || "";
       channelsDiv.innerHTML = "";
       (dev.channels||[]).forEach((c, i) => {
         const row = channelRow(i);
@@ -208,7 +238,7 @@ async function refresh() {
 form.onsubmit = async (e) => {
   e.preventDefault();
   const payload = formToObj(form);
-  const res = await api("/api/devices", {
+  const res = await api("api/devices", {
     method: "POST",
     headers: {"content-type":"application/json"},
     body: JSON.stringify(payload)
@@ -217,13 +247,14 @@ form.onsubmit = async (e) => {
     await refresh();
     alert("Appareil enregistré");
   } else {
-    alert("Erreur d’enregistrement");
+    const txt = await res.text().catch(()=> "");
+    alert("Erreur d’enregistrement\n" + txt);
   }
 };
 
 $("#export").onclick = async () => {
   opResult.textContent = "Export en cours...";
-  const res = await api("/api/export", { method:"POST" });
+  const res = await api("api/export", { method:"POST" });
   const json = await res.json();
   opResult.textContent = json.ok
     ? `Écrit: ${json.auto_output} et ${json.config_output}`
@@ -232,7 +263,7 @@ $("#export").onclick = async () => {
 
 $("#import").onclick = async () => {
   opResult.textContent = "Import en cours...";
-  const res = await api("/api/import", { method:"POST" });
+  const res = await api("api/import", { method:"POST" });
   const json = await res.json();
   if (json.ok) {
     await refresh();
