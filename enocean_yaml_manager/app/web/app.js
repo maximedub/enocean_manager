@@ -1,30 +1,65 @@
-// JS minimal pour la petite UI : CRUD + import/export
+// UI : CRUD + import/export + EEP + affichage conditionnel par type
 const $ = (sel) => document.querySelector(sel);
 const devicesDiv = $("#devices");
 const channelsDiv = $("#channels");
 const form = $("#device-form");
 const opResult = $("#op-result");
+const eHaType = $("#ha_type");
+const eEep = $("#eep");
 
-// Affiche les chemins (par défaut, identiques à run.sh)
 $("#auto-path").textContent = "/config/packages/enocean_auto.yaml";
 $("#cfg-path").textContent = "/config/packages/enocean_yaml_config.yaml";
 
+// --- Affichage conditionnel des panels selon ha_type ---
+const panelSwitch = $("#panel-switch");
+const panelLight  = $("#panel-light");
+const panelSensor = $("#panel-sensor");
+
+function updateVisibility() {
+  const t = eHaType.value;
+  panelSwitch.open = t === "switch";
+  panelLight.open  = t === "light";
+  panelSensor.open = t === "sensor";
+  panelSwitch.style.display = (t === "switch") ? "" : "none";
+  panelLight.style.display  = (t === "light") ? "" : "none";
+  panelSensor.style.display = (t === "sensor") ? "" : "none";
+}
+eHaType.addEventListener("change", updateVisibility);
+updateVisibility();
+
+// --- EEP : charger la liste et remplir le select ---
+async function loadEEPs() {
+  const res = await fetch("/api/eep");
+  const json = await res.json();
+  eEep.innerHTML = `<option value="">(aucun)</option>`;
+  (json.profiles || []).forEach(p => {
+    const label = p.title ? `${p.eep} — ${p.title}` : p.eep;
+    const range = (p.channel_min!=null && p.channel_max!=null) ? ` [${p.channel_min}..${p.channel_max}]` : "";
+    const opt = document.createElement("option");
+    opt.value = p.eep;
+    opt.textContent = label + range;
+    eEep.appendChild(opt);
+  });
+}
+loadEEPs();
+
+// --- Utilitaires ---
 function channelRow(idx) {
-  // Ligne d’édition d’un canal + infos émetteur
+  // Ligne d’édition d’un canal + émetteur
   const row = document.createElement("div");
   row.className = "channel-row";
   row.innerHTML = `
     <label>Canal <input name="channels.${idx}.channel" type="number" value="${idx}"/></label>
     <label>Label <input name="channels.${idx}.label" value="Canal ${idx}"/></label>
-    <label>Émetteur ID <input name="channels.${idx}.emitter_id" placeholder="(optionnel)"/></label>
+    <label>Émetteur ID <input name="channels.${idx}.emitter.id" placeholder="(optionnel)"/></label>
     <label>Émetteur type
-      <select name="channels.${idx}.emitter_kind">
+      <select name="channels.${idx}.emitter.kind">
         <option value="">(aucun)</option>
         <option value="binary_sensor">binary_sensor</option>
         <option value="switch">switch</option>
       </select>
     </label>
-    <label>Émetteur label <input name="channels.${idx}.emitter_label" placeholder="(optionnel)"/></label>
+    <label>Émetteur label <input name="channels.${idx}.emitter.label" placeholder="(optionnel)"/></label>
     <button type="button" class="rm">🗑</button>
   `;
   row.querySelector(".rm").onclick = () => row.remove();
@@ -37,14 +72,26 @@ $("#add-channel").onclick = () => {
 };
 
 function formToObj(formEl) {
-  // Transforme le formulaire en objet Device (cf. models.py)
+  // Transforme le formulaire en un objet Device (cf. models.py)
   const data = new FormData(formEl);
   const obj = { channels: [], sensor_options: {}, light_sender: {} };
   for (const [k,v] of data.entries()) {
     if (k.startsWith("channels.")) {
-      const [, idx, key] = k.split(".");
+      const [, idx, ...rest] = k.split(".");
+      const key = rest.join(".");
       obj.channels[+idx] = obj.channels[+idx] || {channel:0,label:""};
-      obj.channels[+idx][key] = key === "channel" ? Number(v) : v;
+      if (key === "channel") obj.channels[+idx].channel = Number(v);
+      else if (key === "label") obj.channels[+idx].label = v;
+      else if (key === "emitter.id") {
+        obj.channels[+idx].emitter = obj.channels[+idx].emitter || {};
+        obj.channels[+idx].emitter.id = v;
+      } else if (key === "emitter.kind") {
+        obj.channels[+idx].emitter = obj.channels[+idx].emitter || {};
+        obj.channels[+idx].emitter.kind = v || undefined;
+      } else if (key === "emitter.label") {
+        obj.channels[+idx].emitter = obj.channels[+idx].emitter || {};
+        obj.channels[+idx].emitter.label = v || undefined;
+      }
     } else if (k.startsWith("sensor_options.")) {
       const key = k.split(".")[1];
       obj.sensor_options[key] = ["min_temp","max_temp","range_from","range_to"].includes(key) ? Number(v) : v;
@@ -57,12 +104,36 @@ function formToObj(formEl) {
   if (!obj.sensor_options.device_class) delete obj.sensor_options;
   if (!obj.light_sender.sender_id) delete obj.light_sender;
   obj.channels = (obj.channels || []).filter(Boolean);
-  obj.id_hex = (obj.id_hex || "").toUpperCase(); // normalise l’ID
+  obj.id_hex = (obj.id_hex || "").toUpperCase();
+  obj.eep = (obj.eep || "") || undefined;
   return obj;
 }
 
+// --- Génération de canaux depuis EEP ---
+$("#gen-channels").onclick = async () => {
+  const eep = eEep.value;
+  if (!eep) {
+    alert("Sélectionnez un EEP d'abord.");
+    return;
+  }
+  const r = await fetch(`/api/suggest/channels?eep=${encodeURIComponent(eep)}`);
+  const json = await r.json();
+  const chans = json.channels || [];
+  if (!chans.length) {
+    alert("Aucun canal suggéré pour cet EEP.");
+    return;
+  }
+  channelsDiv.innerHTML = "";
+  chans.forEach((c, i) => {
+    const row = channelRow(i);
+    row.querySelector(`[name="channels.${i}.channel"]`).value = c;
+    row.querySelector(`[name="channels.${i}.label"]`).value = `Canal ${c}`;
+    channelsDiv.appendChild(row);
+  });
+};
+
+// --- CRUD & Import/Export ---
 async function refresh() {
-  // Recharge la liste d’appareils depuis l’API
   const res = await fetch("/api/devices");
   const json = await res.json();
   const items = Object.entries(json.devices || {});
@@ -75,7 +146,7 @@ async function refresh() {
     const d = document.createElement("div");
     d.className = "dev";
     d.innerHTML = `
-      <div><b>${dev.label}</b> — ${dev.ha_type} — ID/clé: <code>${key}</code></div>
+      <div><b>${dev.label}</b> — ${dev.ha_type} — EEP: ${dev.eep||"—"} — ID/clé: <code>${key}</code></div>
       ${dev.ha_type==="switch" ? `<div>Canaux: ${(dev.channels||[]).map(c=>`${c.channel} (${c.label})`).join(", ")||"—"}</div>` : ""}
       ${dev.ha_type==="light" ? `<div>sender_id: ${dev.light_sender?.sender_id||"—"}</div>` : ""}
       ${dev.ha_type==="sensor" ? `<div>device_class: ${dev.sensor_options?.device_class||"—"}</div>` : ""}
@@ -97,15 +168,19 @@ async function refresh() {
       form.reset();
       form.id_hex.value = dev.id_hex || "";
       form.label.value = dev.label || "";
-      form.ha_type.value = dev.ha_type || "switch";
+      eHaType.value = dev.ha_type || "switch";
+      updateVisibility();
+      eEep.value = dev.eep || "";
       channelsDiv.innerHTML = "";
       (dev.channels||[]).forEach((c, i) => {
         const row = channelRow(i);
         row.querySelector(`[name="channels.${i}.channel"]`).value = c.channel ?? 0;
         row.querySelector(`[name="channels.${i}.label"]`).value = c.label || "";
-        row.querySelector(`[name="channels.${i}.emitter_id"]`).value = c.emitter_id || "";
-        row.querySelector(`[name="channels.${i}.emitter_kind"]`).value = c.emitter_kind || "";
-        row.querySelector(`[name="channels.${i}.emitter_label"]`).value = c.emitter_label || "";
+        if (c.emitter) {
+          row.querySelector(`[name="channels.${i}.emitter.id"]`).value = c.emitter.id || "";
+          row.querySelector(`[name="channels.${i}.emitter.kind"]`).value = c.emitter.kind || "";
+          row.querySelector(`[name="channels.${i}.emitter.label"]`).value = c.emitter.label || "";
+        }
         channelsDiv.appendChild(row);
       });
       if (dev.light_sender?.sender_id) {
@@ -125,7 +200,6 @@ async function refresh() {
 }
 
 form.onsubmit = async (e) => {
-  // Enregistrement d’un appareil
   e.preventDefault();
   const payload = formToObj(form);
   const res = await fetch("/api/devices", {
@@ -142,7 +216,6 @@ form.onsubmit = async (e) => {
 };
 
 $("#export").onclick = async () => {
-  // Écrit les 2 YAML
   opResult.textContent = "Export en cours...";
   const res = await fetch("/api/export", { method:"POST" });
   const json = await res.json();
@@ -154,7 +227,6 @@ $("#export").onclick = async () => {
 };
 
 $("#import").onclick = async () => {
-  // Lit les 2 YAML puis recharge le registre
   opResult.textContent = "Import en cours...";
   const res = await fetch("/api/import", { method:"POST" });
   const json = await res.json();
