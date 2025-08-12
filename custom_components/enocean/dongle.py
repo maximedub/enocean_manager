@@ -1,79 +1,89 @@
+# custom_components/enocean/dongle.py
 # -*- coding: utf-8 -*-
 """
-Dongle EnOcean patché :
-- Démarre le SerialCommunicator
-- Applique nos rustines (Base ID + UTE guard)
-- Redispatche les paquets radio aux entités
+dongle.py — Outils autour du communicateur série EnOcean.
+
+- Applique le patch UTE dès l'import du module (avant toute réception).
+- Expose detect() et validate_path() pour le config_flow.
+- Fournit des helpers pour initialiser/arrêter le communicateur si besoin.
+
+Ce fichier est importé très tôt par l'intégration → le patch est actif
+avant que le thread de lecture ne traite un teach-in UTE.
 """
+
+from __future__ import annotations
 
 import glob
 import logging
-from os.path import basename, normpath
+import os
+from typing import List, Optional
 
-from enocean.communicators import SerialCommunicator
-from enocean.protocol.packet import RadioPacket
-import serial
+from enocean.communicators import SerialCommunicator  # type: ignore
 
-from homeassistant.helpers.dispatcher import async_dispatcher_connect, dispatcher_send
-
-from .const import SIGNAL_RECEIVE_MESSAGE, SIGNAL_SEND_MESSAGE
 from .patches import apply_enocean_workaround
 
 _LOGGER = logging.getLogger(__name__)
 
-class EnOceanDongle:
-    """Représentation du dongle EnOcean."""
+# --- Appliquer le patch UTE le plus tôt possible (aucun communicator pour l’instant) ---
+try:
+    apply_enocean_workaround(None)  # active le wrapper Packet.send_response() avant tout
+except Exception:  # protection extrême : on ne doit jamais planter ici
+    _LOGGER.exception("Échec application patch UTE à l'import (ignoré).")
 
-    def __init__(self, hass, serial_path):
-        """Crée le communicator série et garde le chemin."""
-        self._communicator = SerialCommunicator(
-            port=serial_path,
-            callback=self.callback,
-        )
-        self.serial_path = serial_path
-        self.identifier = basename(normpath(serial_path))
-        self.hass = hass
-        self.dispatcher_disconnect_handle = None
 
-    async def async_setup(self):
-        """Démarre le thread série, applique rustines, connecte le dispatcher."""
-        self._communicator.start()
-        await self.hass.async_add_executor_job(
-            apply_enocean_workaround, self._communicator
-        )
-        self.dispatcher_disconnect_handle = async_dispatcher_connect(
-            self.hass, SIGNAL_SEND_MESSAGE, self._send_message_callback
-        )
+# ---------- Détection / validation port ----------
+def detect() -> List[str]:
+    """Retourne une liste de ports série candidats (meilleure 1re valeur en tête)."""
+    # by-id d'abord (stable), puis ttyUSB/ttyACM, puis ttyAMA
+    patterns = [
+        "/dev/serial/by-id/*",
+        "/dev/ttyUSB*",
+        "/dev/ttyACM*",
+        "/dev/ttyAMA*",
+    ]
+    found: List[str] = []
+    for pat in patterns:
+        for p in sorted(glob.glob(pat)):
+            if p not in found:
+                found.append(p)
+    return found
 
-    def unload(self):
-        """Désabonnement propre au déchargement de l’intégration."""
-        if self.dispatcher_disconnect_handle:
-            self.dispatcher_disconnect_handle()
-            self.dispatcher_disconnect_handle = None
 
-    def _send_message_callback(self, command):
-        """Envoie un Packet via le communicator."""
-        self._communicator.send(command)
-
-    def callback(self, packet):
-        """Reçoit chaque paquet radio et le redispatche aux entités."""
-        if isinstance(packet, RadioPacket):
-            _LOGGER.debug("Paquet radio reçu: %s", packet)
-            dispatcher_send(self.hass, SIGNAL_RECEIVE_MESSAGE, packet)
-
-def detect():
-    """Détecte des chemins de clé courants (optionnel)."""
-    globs_to_test = ["/dev/tty*FTOA2PV*", "/dev/serial/by-id/*EnOcean*"]
-    found_paths = []
-    for current_glob in globs_to_test:
-        found_paths.extend(glob.glob(current_glob))
-    return found_paths
-
-def validate_path(path: str):
-    """True si le port série est valide et accessible."""
+def validate_path(path: str) -> bool:
+    """Valide sommairement le chemin du dongle (existence & droits)."""
     try:
-        SerialCommunicator(port=path)
-    except serial.SerialException as exception:
-        _LOGGER.warning("Dongle path %s invalide: %s", path, str(exception))
+        if not path:
+            return False
+        if not os.path.exists(path):
+            return False
+        # Lecture simple de stat pour vérifier les droits
+        os.stat(path)
+        return True
+    except Exception as exc:
+        _LOGGER.debug("validate_path(%s) -> False (%s)", path, exc)
         return False
-    return True
+
+
+# ---------- Helpers optionnels pour le communicator ----------
+def init_communicator(device: str) -> SerialCommunicator:
+    """
+    Construit le communicateur et applique le patch AVANT le start.
+    Après le start, on redemande le Base ID via apply_enocean_workaround(communicator).
+    """
+    comm = SerialCommunicator(port=device)  # crée le communicator
+    # Patch déjà actif (appel à l'import), on peut démarrer
+    comm.start()
+    # Tentative lecture Base ID (idempotent et sûr)
+    try:
+        apply_enocean_workaround(comm)
+    except Exception:
+        _LOGGER.exception("Lecture du Base ID (post-start) échouée (ignorée).")
+    return comm
+
+
+def stop_communicator(comm: SerialCommunicator) -> None:
+    """Arrête proprement le communicateur."""
+    try:
+        comm.stop()
+    except Exception:
+        _LOGGER.exception("Arrêt communicateur échoué (ignoré).")
