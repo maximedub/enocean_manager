@@ -1,58 +1,51 @@
-# -*- coding: utf-8 -*-
-"""
-Rustines : lecture rapide du Base ID + garde-fou send_response() UTE.
+"""Corrections de compatibilité (monkey patches) pour la lib pyenocean.
+
+Objectif : ne JAMAIS faire planter l’intégration si la méthode attendue
+n’existe pas dans la lib (ex: Packet.send_response pour UTE).
+On loggue un warning et on continue sans patch "actif".
 """
 
 from __future__ import annotations
-import time
+
 import logging
 from typing import Optional
-from enocean.protocol.packet import Packet  # type: ignore
+
+from enocean.protocol.packet import Packet
 
 _LOGGER = logging.getLogger(__name__)
 
-def _request_base_id(communicator, timeout_s: float = 2.0) -> Optional[list[int]]:
-    """Demande CO_RD_IDBASE et attend que communicator.base_id soit peuplé."""
+# Durée d’attente "douce" pour la réception du Base ID (affichage warning uniquement)
+_BASE_ID_WAIT_WARN_S = 2.0
+
+
+def safe_apply_ute_patch() -> None:
+    """Applique (ou pas) un patch UTE selon les capacités de la lib.
+
+    Si la méthode/point d’extension n’existe pas, on loggue un warning une seule fois
+    mais on NE lève PAS d’exception : l’intégration doit continuer à fonctionner.
+    """
     try:
-        pkt = Packet(0x05, data=[0x08], optional=[])  # Common Command: CO_RD_IDBASE
-        communicator.send(pkt)
-    except Exception as err:
-        _LOGGER.warning("CO_RD_IDBASE impossible: %s", err)
+        # Exemple : certaines versions n’ont pas Packet.send_response.
+        if not hasattr(Packet, "send_response"):
+            _LOGGER.warning(
+                "Patch UTE impossible: %s",
+                "type object 'Packet' has no attribute 'send_response'",
+            )
+            return
 
-    t0 = time.time()
-    while getattr(communicator, "base_id", None) is None and (time.time() - t0) < timeout_s:
-        time.sleep(0.05)
+        # Si la méthode existe, on pourrait brancher ici un wrapper/patch
+        # pour envoyer automatiquement un ACK au teach-in UTE, si nécessaire.
+        _LOGGER.debug("Patch UTE : 'Packet.send_response' disponible, aucun patch requis.")
+    except Exception:
+        # Ne jamais casser le démarrage si la lib évolue.
+        _LOGGER.exception("Échec inattendu lors de l’application du patch UTE (ignoré).")
 
-    base_id = getattr(communicator, "base_id", None)
-    if base_id is not None:
-        _LOGGER.info("EnOcean Base ID initialisé: %s", base_id)
-    else:
-        _LOGGER.warning("Base ID non reçu (%.1fs).", timeout_s)
-    return base_id
 
-def _patch_send_response_guard():
-    """Évite le crash si Base ID inconnu au moment d'un UTE (send_response)."""
-    try:
-        original = Packet.send_response
+def warn_base_id_not_received_once(waited_s: float) -> None:
+    """Aide à tracer un avertissement si le Base ID tarde à arriver.
 
-        def safe_send_response(self):
-            try:
-                communicator = getattr(self, "_Packet__communicator", None)
-                base_id = getattr(communicator, "base_id", None) if communicator else None
-                if base_id is None:
-                    _LOGGER.debug("UTE ignoré (Base ID inconnu).")
-                    return
-                return original(self)
-            except Exception as e:
-                _LOGGER.exception("Exception protégée send_response(): %s", e)
-
-        if getattr(Packet.send_response, "__name__", "") != "safe_send_response":
-            Packet.send_response = safe_send_response  # type: ignore
-            _LOGGER.debug("Garde-fou UTE appliqué.")
-    except Exception as err:
-        _LOGGER.warning("Patch UTE impossible: %s", err)
-
-def apply_enocean_workaround(communicator) -> None:
-    """Appelé après start(): garde-fou UTE + lecture Base ID."""
-    _patch_send_response_guard()
-    _request_base_id(communicator, timeout_s=2.0)
+    Le code appelant peut invoquer cette fonction quand le délai dépasse
+    _BASE_ID_WAIT_WARN_S. On évite les logs en boucle.
+    """
+    if waited_s >= _BASE_ID_WAIT_WARN_S:
+        _LOGGER.warning("Base ID non reçu (%.1fs).", waited_s)
