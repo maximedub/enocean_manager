@@ -1,60 +1,54 @@
-# -*- coding: utf-8 -*-
-"""
-Config flow (copie simplifiée du core) :
-- Permet l’ajout via l’UI (chemin du port série)
-- Valide que le port est accessible
+"""Flux de configuration/options pour l’intégration custom EnOcean.
+
+Ce fichier corrige la signature d'options flow afin d'éviter :
+TypeError: EnOceanFlowHandler.async_get_options_flow() missing 1 required positional argument: 'config_entry'
 """
 
 from __future__ import annotations
 
-import voluptuous as vol
+from typing import Any, Dict
 
 from homeassistant import config_entries
-from homeassistant.const import CONF_DEVICE
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import config_validation as cv
 
 from .const import DOMAIN
-from .dongle import validate_path, detect
+
 
 class EnOceanFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
-    """Gestionnaire du flow EnOcean."""
+    """Gère le flux d'installation initial (si nécessaire)."""
 
     VERSION = 1
 
-    async def async_step_user(self, user_input=None) -> FlowResult:
-        """Premier écran : choix du port série (ou propose détectés)."""
-        errors = {}
-        ports = detect() or []
-        schema = vol.Schema({vol.Required(CONF_DEVICE): cv.string})
+    async def async_step_user(self, user_input: Dict[str, Any] | None = None) -> FlowResult:
+        """Étape d'entrée utilisateur.
 
-        if user_input is not None:
-            if not await self.hass.async_add_executor_job(validate_path, user_input[CONF_DEVICE]):
-                errors["base"] = "invalid_dongle_path"
-            else:
-                return self.async_create_entry(title="EnOcean", data=user_input)
+        Ici on laisse le core EnOcean gérer l’ajout via YAML ou par l’intégration core,
+        notre custom n’ajoute pas de champs nouveaux au setup.
+        """
+        return self.async_abort(reason="use_core_setup")
 
-        defaults = ports[0] if ports else "/dev/serial/by-id/..."
-        return self.async_show_form(
-            step_id="user",
-            data_schema=schema,
-            errors=errors,
-            description_placeholders={"ports": "\n".join(ports) if ports else "Aucun trouvé"},
-            last_step=True,
-        )
+    @staticmethod
+    def async_get_options_flow(config_entry: config_entries.ConfigEntry) -> config_entries.OptionsFlow:
+        """Retourne le gestionnaire d’options pour cette entrée de config.
 
-    @callback
-    def async_get_options_flow(self, config_entry):
-        """Retourne le flow d’options (pas d’options ici)."""
-        return EnOceanOptionsFlow(config_entry)
+        La signature DOIT accepter 'config_entry' (exigée par HA).
+        """
+        return EnOceanOptionsFlowHandler(config_entry)
 
-class EnOceanOptionsFlow(config_entries.OptionsFlow):
-    """Flow d’options vide (placeholder)."""
 
-    def __init__(self, config_entry):
-        self.config_entry = config_entry
+class EnOceanOptionsFlowHandler(config_entries.OptionsFlow):
+    """Gère le panneau d’options de l’intégration."""
 
-    async def async_step_init(self, user_input=None) -> FlowResult:
-        """Pas d’options spécifiques."""
-        return self.async_create_entry(title="", data={})
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Stocke l'entrée de configuration."""
+        self._entry = config_entry
+
+    async def async_step_init(self, user_input: Dict[str, Any] | None = None) -> FlowResult:
+        """Première (et unique) étape des options.
+
+        Pour l’instant, on ne propose pas d’options supplémentaires.
+        On crée une entrée vide pour éviter les erreurs et sortir proprement.
+        """
+        # On pourrait exposer plus tard des options (ex: temps d’attente Base ID).
+        return self.async_create_entry(title="", data=self._entry.options or {})
