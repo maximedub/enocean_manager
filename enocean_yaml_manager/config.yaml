@@ -3,7 +3,7 @@ slug: enocean_yaml_manager
 description: |
   Générez deux YAML EnOcean : un pour Home Assistant (auto)
   et un pour vos groupements lisibles (config). UI web simple.
-version: 0.3.6            # ⬅️ bump pour forcer le rebuild/upgrade de l'add-on
+version: 0.3.7            # ⬅️ bump pour forcer le rebuild/upgrade de l'add-on
 arch:
   - aarch64
   - amd64
