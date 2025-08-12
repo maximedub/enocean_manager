@@ -7,20 +7,28 @@ const opResult = $("#op-result");
 const eHaType = $("#ha_type");
 const eEep = $("#eep");
 
-// Base Ingress : on calcule le "chemin racine" à partir de l'URL courante.
-// Ex: /api/hassio_ingress/<token>/ -> BASE="/api/hassio_ingress/<token>"
+// Base Ingress : API relative au chemin courant
 const BASE = window.location.pathname.replace(/\/$/, "");
 const api = (path, opts={}) => fetch(`${BASE}${path}`, opts);
 
-// Affiche les chemins (indicatif)
-$("#auto-path").textContent = "/config/packages/enocean_auto.yaml";
-$("#cfg-path").textContent = "/config/packages/enocean_yaml_config.yaml";
+// Récupère et affiche les chemins effectifs
+async function showPaths() {
+  try {
+    const res = await api("/api/paths");
+    const j = await res.json();
+    $("#auto-path").textContent = j.auto_output_path || "(?)";
+    $("#cfg-path").textContent  = j.config_output_path || "(?)";
+  } catch (e) {
+    $("#auto-path").textContent = "/config/packages/enocean_auto.yaml";
+    $("#cfg-path").textContent  = "/config/enocean_yaml_config.yaml";
+  }
+}
+showPaths();
 
 // --- Affichage conditionnel des sections selon ha_type ---
 const panelSwitch = $("#panel-switch");
 const panelLight  = $("#panel-light");
 const panelSensor = $("#panel-sensor");
-
 function updateVisibility() {
   const t = eHaType.value;
   panelSwitch.open = t === "switch";
@@ -51,7 +59,6 @@ loadEEPs();
 
 // --- Éditeur de canaux ---
 function channelRow(idx) {
-  // Ligne d’édition d’un canal + émetteur
   const row = document.createElement("div");
   row.className = "channel-row";
   row.innerHTML = `
@@ -71,26 +78,19 @@ function channelRow(idx) {
   row.querySelector(".rm").onclick = () => row.remove();
   return row;
 }
-
 $("#add-channel").onclick = () => {
   const idx = channelsDiv.childElementCount;
   channelsDiv.appendChild(channelRow(idx));
 };
 
-// --- Génération de canaux depuis l'EEP sélectionné ---
+// Génération de canaux depuis l'EEP
 $("#gen-channels").onclick = async () => {
   const eep = eEep.value;
-  if (!eep) {
-    alert("Sélectionnez un EEP d'abord.");
-    return;
-  }
+  if (!eep) return alert("Sélectionnez un EEP d'abord.");
   const r = await api(`/api/suggest/channels?eep=${encodeURIComponent(eep)}`);
   const json = await r.json();
   const chans = json.channels || [];
-  if (!chans.length) {
-    alert("Aucun canal suggéré pour cet EEP.");
-    return;
-  }
+  if (!chans.length) return alert("Aucun canal suggéré pour cet EEP.");
   channelsDiv.innerHTML = "";
   chans.forEach((c, i) => {
     const row = channelRow(i);
@@ -100,9 +100,8 @@ $("#gen-channels").onclick = async () => {
   });
 };
 
-// --- Form helpers ---
+// Form helpers
 function formToObj(formEl) {
-  // Transforme le formulaire en un objet Device (cf. models.py)
   const data = new FormData(formEl);
   const obj = { channels: [], sensor_options: {}, light_sender: {} };
   for (const [k,v] of data.entries()) {
@@ -139,7 +138,7 @@ function formToObj(formEl) {
   return obj;
 }
 
-// --- CRUD & Import/Export ---
+// CRUD & Import/Export
 async function refresh() {
   const res = await api("/api/devices");
   const json = await res.json();
@@ -175,9 +174,9 @@ async function refresh() {
       form.reset();
       form.id_hex.value = dev.id_hex || "";
       form.label.value = dev.label || "";
-      eHaType.value = dev.ha_type || "switch";
+      $("#ha_type").value = dev.ha_type || "switch";
       updateVisibility();
-      eEep.value = dev.eep || "";
+      $("#eep").value = dev.eep || "";
       channelsDiv.innerHTML = "";
       (dev.channels||[]).forEach((c, i) => {
         const row = channelRow(i);
@@ -226,11 +225,9 @@ $("#export").onclick = async () => {
   opResult.textContent = "Export en cours...";
   const res = await api("/api/export", { method:"POST" });
   const json = await res.json();
-  if (json.ok) {
-    opResult.textContent = `Écrit: ${json.auto_output} et ${json.config_output}`;
-  } else {
-    opResult.textContent = "Erreur export";
-  }
+  opResult.textContent = json.ok
+    ? `Écrit: ${json.auto_output} et ${json.config_output}`
+    : "Erreur export";
 };
 
 $("#import").onclick = async () => {
